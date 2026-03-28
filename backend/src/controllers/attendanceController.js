@@ -1,4 +1,5 @@
 const Attendance = require('../models/Attendance');
+const pool = require('../config/database');
 const { successResponse, errorResponse } = require('../utils/responseHelper');
 
 const getAllAttendance = async (req, res, next) => {
@@ -38,7 +39,19 @@ const checkIn = async (req, res, next) => {
 
 const checkOut = async (req, res, next) => {
   try {
-    const { attendance_id, latitude, longitude } = req.body;
+    let { attendance_id, latitude, longitude } = req.body;
+    
+    if (!attendance_id) {
+      const [latest] = await pool.query(
+        'SELECT id FROM attendance WHERE employee_id = ? AND status = ? ORDER BY check_in_time DESC LIMIT 1',
+        [req.user.id, 'checked_in']
+      );
+      if (latest.length === 0) {
+        return errorResponse(res, 'No active check-in found to check out', 400);
+      }
+      attendance_id = latest[0].id;
+    }
+
     const attendance = await Attendance.checkOut(attendance_id, latitude, longitude);
     return successResponse(res, attendance, 'Checked out successfully');
   } catch (error) {

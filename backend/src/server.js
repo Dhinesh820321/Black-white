@@ -9,7 +9,8 @@ const swaggerUi = require('swagger-ui-express');
 
 const routes = require('./routes');
 const { errorHandler, notFound } = require('./middlewares/errorHandler');
-const initDatabase = require('./config/schema');
+const connectDB = require('./config/mongo');
+const seedData = require('./config/seedMongo');
 
 const app = express();
 const server = http.createServer(app);
@@ -93,16 +94,17 @@ const emitToAll = (event, data) => {
 
 const startServer = async () => {
   try {
-    await initDatabase();
-    console.log('Database initialized');
+    await connectDB();
+    await seedData();
+    console.log('✅ MongoDB Connected and Seeded');
 
     const PORT = process.env.PORT || 5000;
     server.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
-      console.log(`API Docs: http://localhost:${PORT}/api-docs`);
+      console.log(`🚀 Server running on port ${PORT}`);
+      console.log(`📄 API Docs: http://localhost:${PORT}/api-docs`);
     });
   } catch (error) {
-    console.error('Failed to start server:', error);
+    console.error('❌ Failed to start server:', error);
     process.exit(1);
   }
 };

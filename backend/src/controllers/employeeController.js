@@ -28,7 +28,19 @@ const getEmployee = async (req, res, next) => {
 const createEmployee = async (req, res, next) => {
   try {
     const { name, role, phone, password, branch_id, salary } = req.body;
-    const employee = await Employee.create({ name, role, phone, password, branch_id, salary });
+    
+    // Safety check for branch_id (convert empty string to null)
+    const processedBranchId = branch_id === '' || branch_id === undefined ? null : branch_id;
+    
+    const employee = await Employee.create({ 
+      name, 
+      role, 
+      phone, 
+      password, 
+      branch_id: processedBranchId, 
+      salary: salary || 0 
+    });
+    
     return successResponse(res, employee, 'Employee created successfully', 201);
   } catch (error) {
     next(error);

@@ -42,6 +42,7 @@ const initDatabase = async () => {
 
     CREATE TABLE IF NOT EXISTS employees (
       id INT PRIMARY KEY AUTO_INCREMENT,
+      employee_id VARCHAR(20) UNIQUE,
       name VARCHAR(100) NOT NULL,
       role ENUM('admin', 'manager', 'stylist', 'helper') NOT NULL,
       phone VARCHAR(20) UNIQUE NOT NULL,
@@ -50,6 +51,7 @@ const initDatabase = async () => {
       salary DECIMAL(10, 2) DEFAULT 0,
       status ENUM('active', 'inactive') DEFAULT 'active',
       device_id VARCHAR(255),
+      password_changed_at TIMESTAMP NULL,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
       FOREIGN KEY (branch_id) REFERENCES branches(id) ON DELETE SET NULL
@@ -214,15 +216,13 @@ const initDatabase = async () => {
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
 
-    ALTER TABLE employees ADD COLUMN IF NOT EXISTS employee_id VARCHAR(20) UNIQUE;
-    ALTER TABLE employees ADD COLUMN IF NOT EXISTS password_changed_at TIMESTAMP NULL;
 
     INSERT IGNORE INTO branches (id, name, location, geo_latitude, geo_longitude, geo_radius, status) VALUES
     (1, 'Main Branch - Downtown', '123 Main Street, Downtown', 28.6139, 77.2090, 100, 'active'),
     (2, 'South Mall Branch', '456 Mall Road, South', 28.5355, 77.2500, 150, 'active');
 
-    INSERT IGNORE INTO employees (id, name, role, phone, password, branch_id, salary, status) VALUES
-    (1, 'Super Admin', 'admin', '9999999999', '${hashedPassword}', NULL, 0, 'active');
+    INSERT IGNORE INTO employees (id, employee_id, name, role, phone, password, branch_id, salary, status) VALUES
+    (1, 'ADM001', 'Super Admin', 'admin', '9999999999', '${hashedPassword}', NULL, 0, 'active');
   `;
 
   try {

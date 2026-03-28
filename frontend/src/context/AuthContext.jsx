@@ -1,9 +1,7 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import axios from 'axios';
+import { authAPI } from '../services/api';
 
 const AuthContext = createContext(null);
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -11,22 +9,25 @@ export const AuthProvider = ({ children }) => {
   const [isFirstLogin, setIsFirstLogin] = useState(false);
 
   useEffect(() => {
-    try {
-      const storedUser = localStorage.getItem('user');
-      const token = localStorage.getItem('token');
-      const firstLogin = localStorage.getItem('isFirstLogin');
-      
-      if (storedUser && token && storedUser !== 'undefined') {
-        setUser(JSON.parse(storedUser));
-        setIsFirstLogin(firstLogin === 'true');
+    const initAuth = () => {
+      try {
+        const storedUser = localStorage.getItem('user');
+        const token = localStorage.getItem('token');
+        const firstLogin = localStorage.getItem('isFirstLogin');
+        
+        if (storedUser && token && storedUser !== 'undefined') {
+          setUser(JSON.parse(storedUser));
+          setIsFirstLogin(firstLogin === 'true');
+        }
+      } catch (error) {
+        console.warn('Failed to parse stored user:', error);
+        localStorage.removeItem('user');
+        localStorage.removeItem('token');
+        localStorage.removeItem('isFirstLogin');
       }
-    } catch (error) {
-      console.warn('Failed to parse stored user:', error);
-      localStorage.removeItem('user');
-      localStorage.removeItem('token');
-      localStorage.removeItem('isFirstLogin');
-    }
-    setLoading(false);
+      setLoading(false);
+    };
+    initAuth();
   }, []);
 
   const loginWithPassword = async (phone, password, location = null) => {
@@ -41,7 +42,7 @@ export const AuthProvider = ({ children }) => {
         })
       };
       
-      const response = await axios.post(`${API_URL}/auth/login/password`, data);
+      const response = await authAPI.login(data);
       const { token, user: userData, is_first_login } = response.data.data;
       
       localStorage.setItem('token', token);
@@ -63,7 +64,7 @@ export const AuthProvider = ({ children }) => {
 
   const requestOTP = async (phone) => {
     try {
-      const response = await axios.post(`${API_URL}/auth/login/otp/request`, { phone });
+      const response = await authAPI.requestOTP({ phone });
       return { success: true, data: response.data.data };
     } catch (error) {
       return { success: false, error: error.response?.data?.message || 'Failed to send OTP' };
@@ -72,7 +73,7 @@ export const AuthProvider = ({ children }) => {
 
   const verifyOTP = async (phone, otp, deviceId) => {
     try {
-      const response = await axios.post(`${API_URL}/auth/login/otp/verify`, { 
+      const response = await authAPI.verifyOTP({ 
         phone, 
         otp,
         device_id: deviceId
@@ -96,12 +97,7 @@ export const AuthProvider = ({ children }) => {
 
   const changePassword = async (currentPassword, newPassword) => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await axios.post(
-        `${API_URL}/auth/change-password`,
-        { currentPassword, newPassword },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const response = await authAPI.changePassword({ currentPassword, newPassword });
       
       if (response.data.success) {
         localStorage.setItem('isFirstLogin', 'false');
