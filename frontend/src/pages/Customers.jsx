@@ -91,6 +91,7 @@ export default function Customers() {
     setError(null);
   };
 
+<<<<<<< HEAD
   const handleCloseModal = () => {
     setShowModal(false);
     resetForm();
@@ -99,6 +100,11 @@ export default function Customers() {
   const filteredCustomers = customers.filter(c =>
     c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     c.phone.includes(searchTerm)
+=======
+  const filteredCustomers = (customers || []).filter(c =>
+    (c.name || '').toLowerCase().includes((searchTerm || '').toLowerCase()) ||
+    (c.phone || '').includes(searchTerm || '')
+>>>>>>> e44e6b5089c84c50e2b323a799a64103fd242bed
   );
 
   if (loading) {
@@ -165,10 +171,40 @@ export default function Customers() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
+<<<<<<< HEAD
               {filteredCustomers.length === 0 ? (
                 <tr>
                   <td colSpan="6" className="px-4 py-8 text-center text-gray-500">
                     {searchTerm ? 'No customers match your search.' : 'No customers found. Click "Add Customer" to create one.'}
+=======
+              {(filteredCustomers || []).map((customer) => (
+                <tr key={customer.id || customer._id} className="hover:bg-gray-50">
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                        <User className="w-5 h-5 text-blue-600" />
+                      </div>
+                      <span className="font-medium text-gray-900">{customer.name}</span>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-600">{customer.phone}</td>
+                  <td className="px-4 py-3 text-sm text-gray-600">
+                    {customer.last_visit ? (
+                      <span className={customer.days_since_visit > 45 ? 'text-red-600 font-medium' : ''}>
+                        {formatDate(customer.last_visit)} ({customer.days_since_visit} days ago)
+                      </span>
+                    ) : '-'}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-600">{customer.loyalty_points || 0}</td>
+                  <td className="px-4 py-3 text-sm text-gray-500 max-w-xs truncate">{customer.notes || '-'}</td>
+                  <td className="px-4 py-3 text-right">
+                    <button onClick={() => handleEdit(customer)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg">
+                      <Edit className="w-4 h-4" />
+                    </button>
+                    <button onClick={() => handleDelete(customer.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+>>>>>>> e44e6b5089c84c50e2b323a799a64103fd242bed
                   </td>
                 </tr>
               ) : (

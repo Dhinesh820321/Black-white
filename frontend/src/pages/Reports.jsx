@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { reportsAPI, branchesAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { cleanParams } from '../utils/cleanParams';
 import { formatCurrency, exportToCSV } from '../utils/helpers';
 import { FileText, Download, TrendingUp, Users, Calendar, Building2 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
@@ -42,7 +43,7 @@ export default function Reports() {
     setLoading(true);
     try {
       let res;
-      const params = { ...filters };
+      const params = cleanParams({ ...filters });
       if (reportType === 'daily') {
         res = await reportsAPI.getDailyReport(params);
       } else if (reportType === 'monthly') {

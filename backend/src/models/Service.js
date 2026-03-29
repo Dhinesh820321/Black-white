@@ -1,60 +1,46 @@
-const pool = require('../config/database');
+const mongoose = require('mongoose');
+
+const serviceSchema = new mongoose.Schema({
+  name: { type: String, required: true },
+  price: { type: Number, required: true },
+  gst_percentage: { type: Number, default: 18 },
+  duration_minutes: { type: Number, default: 30 },
+  commission_percentage: { type: Number, default: 0 },
+  status: { type: String, enum: ['active', 'inactive'], default: 'active' }
+}, {
+  timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }
+});
+
+const ServiceModel = mongoose.model('Service', serviceSchema);
 
 class Service {
   static async findAll(filters = {}) {
-    let query = 'SELECT * FROM services WHERE 1=1';
-    const params = [];
+    let query = {};
+    if (filters.status) query.status = filters.status;
+    if (filters.search) query.name = { $regex: filters.search, $options: 'i' };
 
-    if (filters.status) {
-      query += ' AND status = ?';
-      params.push(filters.status);
-    }
-
-    if (filters.search) {
-      query += ' AND name LIKE ?';
-      params.push(`%${filters.search}%`);
-    }
-
-    query += ' ORDER BY name ASC';
-
-    const [rows] = await pool.query(query, params);
-    return rows;
+    return ServiceModel.find(query).sort({ name: 1 }).lean();
   }
 
   static async findById(id) {
-    const [rows] = await pool.query('SELECT * FROM services WHERE id = ?', [id]);
-    return rows[0];
+    if (!mongoose.Types.ObjectId.isValid(id)) return null;
+    return ServiceModel.findById(id).lean();
   }
 
   static async create(data) {
-    const [result] = await pool.query(
-      'INSERT INTO services (name, price, gst_percentage, duration_minutes, commission_percentage, status) VALUES (?, ?, ?, ?, ?, ?)',
-      [data.name, data.price, data.gst_percentage || 18, data.duration_minutes || 30, data.commission_percentage || 0, data.status || 'active']
-    );
-    return { id: result.insertId, ...data };
+    const service = new ServiceModel(data);
+    await service.save();
+    return service.toObject();
   }
 
   static async update(id, data) {
-    const fields = [];
-    const params = [];
-
-    for (const [key, value] of Object.entries(data)) {
-      if (value !== undefined && key !== 'id') {
-        fields.push(`${key} = ?`);
-        params.push(value);
-      }
-    }
-
-    if (fields.length > 0) {
-      params.push(id);
-      await pool.query(`UPDATE services SET ${fields.join(', ')} WHERE id = ?`, params);
-    }
-
-    return this.findById(id);
+    if (!mongoose.Types.ObjectId.isValid(id)) return null;
+    return ServiceModel.findByIdAndUpdate(id, { $set: data }, { new: true }).lean();
   }
 
   static async delete(id) {
-    await pool.query('DELETE FROM services WHERE id = ?', [id]);
+    if (!mongoose.Types.ObjectId.isValid(id)) return false;
+    await ServiceModel.findByIdAndDelete(id);
     return true;
   }
 }

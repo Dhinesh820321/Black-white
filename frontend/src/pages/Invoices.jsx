@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { invoicesAPI, servicesAPI, customersAPI, branchesAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { cleanParams } from '../utils/cleanParams';
 import { formatCurrency, formatDateTime, getPaymentTypeColor } from '../utils/helpers';
 import { Plus, Receipt, Search, Calendar } from 'lucide-react';
 
@@ -25,7 +26,7 @@ export default function Invoices() {
 
   const loadData = async () => {
     try {
-      const params = { ...filters };
+      const params = cleanParams({ ...filters });
       const [invRes, svcRes, custRes, branchRes] = await Promise.all([
         invoicesAPI.getAll(params),
         servicesAPI.getAll({ status: 'active' }),

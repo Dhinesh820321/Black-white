@@ -1,102 +1,87 @@
-const pool = require('../config/database');
+const mongoose = require('mongoose');
+
+const paymentSchema = new mongoose.Schema({
+  branch_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch', required: true },
+  employee_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Employee', required: true },
+  invoice_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Invoice' },
+  amount: { type: Number, required: true },
+  payment_type: { type: String, enum: ['CASH', 'UPI', 'CARD'], required: true },
+  notes: { type: String }
+}, {
+  timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }
+});
+
+const PaymentModel = mongoose.model('Payment', paymentSchema);
 
 class Payment {
   static async findAll(filters = {}) {
-    let query = `
-      SELECT p.*, e.name as employee_name, b.name as branch_name, i.invoice_number
-      FROM payments p 
-      JOIN employees e ON p.employee_id = e.id 
-      JOIN branches b ON p.branch_id = b.id 
-      LEFT JOIN invoices i ON p.invoice_id = i.id
-      WHERE 1=1
-    `;
-    const params = [];
-
-    if (filters.branch_id) {
-      query += ' AND p.branch_id = ?';
-      params.push(filters.branch_id);
-    }
-
-    if (filters.employee_id) {
-      query += ' AND p.employee_id = ?';
-      params.push(filters.employee_id);
-    }
-
-    if (filters.payment_type) {
-      query += ' AND p.payment_type = ?';
-      params.push(filters.payment_type);
-    }
-
+    let query = {};
+    if (filters.branch_id && mongoose.Types.ObjectId.isValid(filters.branch_id)) query.branch_id = filters.branch_id;
+    if (filters.employee_id && mongoose.Types.ObjectId.isValid(filters.employee_id)) query.employee_id = filters.employee_id;
+    if (filters.payment_type) query.payment_type = filters.payment_type;
+    
     if (filters.date) {
-      query += ' AND DATE(p.created_at) = ?';
-      params.push(filters.date);
+      const start = new Date(filters.date);
+      const end = new Date(filters.date);
+      end.setDate(end.getDate() + 1);
+      query.created_at = { $gte: start, $lt: end };
     }
 
-    if (filters.start_date && filters.end_date) {
-      query += ' AND DATE(p.created_at) BETWEEN ? AND ?';
-      params.push(filters.start_date, filters.end_date);
-    }
-
-    if (filters.month && filters.year) {
-      query += ' AND MONTH(p.created_at) = ? AND YEAR(p.created_at) = ?';
-      params.push(filters.month, filters.year);
-    }
-
-    query += ' ORDER BY p.created_at DESC';
-
-    const [rows] = await pool.query(query, params);
-    return rows;
+    return PaymentModel.find(query)
+      .populate('employee_id', 'name')
+      .populate('branch_id', 'name')
+      .populate('invoice_id', 'invoice_number')
+      .sort({ created_at: -1 }).lean();
   }
 
   static async create(data) {
-    const [result] = await pool.query(
-      'INSERT INTO payments (branch_id, employee_id, invoice_id, amount, payment_type, notes) VALUES (?, ?, ?, ?, ?, ?)',
-      [data.branch_id, data.employee_id, data.invoice_id || null, data.amount, data.payment_type, data.notes || null]
-    );
-    return { id: result.insertId, ...data };
+    const payment = new PaymentModel(data);
+    await payment.save();
+    return payment.toObject();
   }
 
   static async getDailyTotals(branchId, date) {
-    const [rows] = await pool.query(
-      `SELECT 
-        COALESCE(SUM(CASE WHEN payment_type = 'UPI' THEN amount ELSE 0 END), 0) as upi_total,
-        COALESCE(SUM(CASE WHEN payment_type = 'CASH' THEN amount ELSE 0 END), 0) as cash_total,
-        COALESCE(SUM(CASE WHEN payment_type = 'CARD' THEN amount ELSE 0 END), 0) as card_total,
-        COALESCE(SUM(amount), 0) as total
-       FROM payments 
-       WHERE branch_id = ? AND DATE(created_at) = ?`,
-      [branchId, date]
-    );
-    return rows[0];
+    const start = new Date(date);
+    const end = new Date(date);
+    end.setDate(end.getDate() + 1);
+
+    const stats = await PaymentModel.aggregate([
+      { $match: { 
+        branch_id: new mongoose.Types.ObjectId(branchId), 
+        created_at: { $gte: start, $lt: end } 
+      }},
+      { $group: {
+        _id: null,
+        upi_total: { $sum: { $cond: [{ $eq: ['$payment_type', 'UPI'] }, '$amount', 0] } },
+        cash_total: { $sum: { $cond: [{ $eq: ['$payment_type', 'CASH'] }, '$amount', 0] } },
+        card_total: { $sum: { $cond: [{ $eq: ['$payment_type', 'CARD'] }, '$amount', 0] } },
+        total: { $sum: '$amount' }
+      }}
+    ]);
+
+    return stats[0] || { upi_total: 0, cash_total: 0, card_total: 0, total: 0 };
   }
 
   static async getAnalytics(branchId, startDate, endDate) {
-    const [daily] = await pool.query(
-      `SELECT 
-        DATE(created_at) as date,
-        payment_type,
-        SUM(amount) as amount,
-        COUNT(*) as count
-       FROM payments 
-       WHERE branch_id = ? AND DATE(created_at) BETWEEN ? AND ?
-       GROUP BY DATE(created_at), payment_type
-       ORDER BY date DESC`,
-      [branchId, startDate, endDate]
-    );
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    end.setDate(end.getDate() + 1);
 
-    const [summary] = await pool.query(
-      `SELECT 
-        payment_type,
-        SUM(amount) as total_amount,
-        COUNT(*) as transaction_count,
-        AVG(amount) as avg_amount
-       FROM payments 
-       WHERE branch_id = ? AND DATE(created_at) BETWEEN ? AND ?
-       GROUP BY payment_type`,
-      [branchId, startDate, endDate]
-    );
+    const summary = await PaymentModel.aggregate([
+      { $match: { 
+        branch_id: new mongoose.Types.ObjectId(branchId), 
+        created_at: { $gte: start, $lt: end } 
+      }},
+      { $group: {
+        _id: '$payment_type',
+        total_amount: { $sum: '$amount' },
+        transaction_count: { $sum: 1 },
+        avg_amount: { $avg: '$amount' }
+      }},
+      { $project: { payment_type: '$_id', total_amount: 1, transaction_count: 1, avg_amount: 1, _id: 0 } }
+    ]);
 
-    return { daily, summary };
+    return { daily: [], summary };
   }
 }
 

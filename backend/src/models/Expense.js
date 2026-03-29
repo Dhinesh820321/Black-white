@@ -1,109 +1,92 @@
-const pool = require('../config/database');
+const mongoose = require('mongoose');
+
+const expenseSchema = new mongoose.Schema({
+  branch_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch', required: true },
+  title: { type: String, required: true },
+  amount: { type: Number, required: true },
+  category: { type: String, default: 'misc' },
+  receipt_image: { type: String },
+  created_by: { type: mongoose.Schema.Types.ObjectId, ref: 'Employee' }
+}, {
+  timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }
+});
+
+const ExpenseModel = mongoose.model('Expense', expenseSchema);
 
 class Expense {
   static async findAll(filters = {}) {
-    let query = `
-      SELECT e.*, b.name as branch_name, emp.name as created_by_name
-      FROM expenses e 
-      JOIN branches b ON e.branch_id = b.id 
-      LEFT JOIN employees emp ON e.created_by = emp.id
-      WHERE 1=1
-    `;
-    const params = [];
-
-    if (filters.branch_id) {
-      query += ' AND e.branch_id = ?';
-      params.push(filters.branch_id);
-    }
-
-    if (filters.category) {
-      query += ' AND e.category = ?';
-      params.push(filters.category);
-    }
-
+    let query = {};
+    if (filters.branch_id && mongoose.Types.ObjectId.isValid(filters.branch_id)) query.branch_id = filters.branch_id;
+    if (filters.category) query.category = filters.category;
+    
     if (filters.date) {
-      query += ' AND DATE(e.created_at) = ?';
-      params.push(filters.date);
+      const start = new Date(filters.date);
+      const end = new Date(filters.date);
+      end.setDate(end.getDate() + 1);
+      query.created_at = { $gte: start, $lt: end };
     }
 
-    if (filters.start_date && filters.end_date) {
-      query += ' AND DATE(e.created_at) BETWEEN ? AND ?';
-      params.push(filters.start_date, filters.end_date);
-    }
-
-    if (filters.month && filters.year) {
-      query += ' AND MONTH(e.created_at) = ? AND YEAR(e.created_at) = ?';
-      params.push(filters.month, filters.year);
-    }
-
-    query += ' ORDER BY e.created_at DESC';
-
-    const [rows] = await pool.query(query, params);
-    return rows;
+    return ExpenseModel.find(query)
+      .populate('branch_id', 'name')
+      .populate('created_by', 'name')
+      .sort({ created_at: -1 }).lean();
   }
 
   static async findById(id) {
-    const [rows] = await pool.query(
-      `SELECT e.*, b.name as branch_name, emp.name as created_by_name
-       FROM expenses e 
-       JOIN branches b ON e.branch_id = b.id 
-       LEFT JOIN employees emp ON e.created_by = emp.id
-       WHERE e.id = ?`,
-      [id]
-    );
-    return rows[0];
+    if (!mongoose.Types.ObjectId.isValid(id)) return null;
+    return ExpenseModel.findById(id)
+      .populate('branch_id', 'name')
+      .populate('created_by', 'name')
+      .lean();
   }
 
   static async create(data) {
-    const [result] = await pool.query(
-      'INSERT INTO expenses (branch_id, title, amount, category, receipt_image, created_by) VALUES (?, ?, ?, ?, ?, ?)',
-      [data.branch_id, data.title, data.amount, data.category || 'misc', data.receipt_image, data.created_by]
-    );
-    return { id: result.insertId, ...data };
+    const expense = new ExpenseModel(data);
+    await expense.save();
+    return expense.toObject();
   }
 
   static async update(id, data) {
-    const fields = [];
-    const params = [];
-
-    for (const [key, value] of Object.entries(data)) {
-      if (value !== undefined && key !== 'id') {
-        fields.push(`${key} = ?`);
-        params.push(value);
-      }
-    }
-
-    if (fields.length > 0) {
-      params.push(id);
-      await pool.query(`UPDATE expenses SET ${fields.join(', ')} WHERE id = ?`, params);
-    }
-
-    return this.findById(id);
+    if (!mongoose.Types.ObjectId.isValid(id)) return null;
+    return ExpenseModel.findByIdAndUpdate(id, { $set: data }, { new: true }).lean();
   }
 
   static async delete(id) {
-    await pool.query('DELETE FROM expenses WHERE id = ?', [id]);
+    if (!mongoose.Types.ObjectId.isValid(id)) return false;
+    await ExpenseModel.findByIdAndDelete(id);
     return true;
   }
 
   static async getSummary(branchId, startDate, endDate) {
-    const [rows] = await pool.query(
-      `SELECT 
-        category,
-        SUM(amount) as total,
-        COUNT(*) as count
-       FROM expenses 
-       WHERE branch_id = ? AND DATE(created_at) BETWEEN ? AND ?
-       GROUP BY category`,
-      [branchId, startDate, endDate]
-    );
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    end.setDate(end.getDate() + 1);
 
-    const [[total]] = await pool.query(
-      'SELECT COALESCE(SUM(amount), 0) as total FROM expenses WHERE branch_id = ? AND DATE(created_at) BETWEEN ? AND ?',
-      [branchId, startDate, endDate]
-    );
+    const byCategory = await ExpenseModel.aggregate([
+      { $match: { 
+        branch_id: new mongoose.Types.ObjectId(branchId), 
+        created_at: { $gte: start, $lt: end } 
+      }},
+      { $group: {
+        _id: '$category',
+        total: { $sum: '$amount' },
+        count: { $sum: 1 }
+      }},
+      { $project: { category: '$_id', total: 1, count: 1, _id: 0 } }
+    ]);
 
-    return { byCategory: rows, total: total.total };
+    const totalStats = await ExpenseModel.aggregate([
+      { $match: { 
+        branch_id: new mongoose.Types.ObjectId(branchId), 
+        created_at: { $gte: start, $lt: end } 
+      }},
+      { $group: {
+        _id: null,
+        total: { $sum: '$amount' }
+      }}
+    ]);
+
+    return { byCategory, total: totalStats[0]?.total || 0 };
   }
 }
 
