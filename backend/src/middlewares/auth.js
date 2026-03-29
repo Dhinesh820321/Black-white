@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const Employee = require('../models/Employee');
+const User = require('../models/User');
 const mongoose = require('mongoose');
 const { errorResponse } = require('../utils/responseHelper');
 
@@ -20,15 +20,15 @@ const auth = async (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     console.log(`   Token decoded:`, decoded);
 
-    const employee = await Employee.findById(decoded.id);
+    const user = await User.findById(decoded.id);
 
-    if (!employee || employee.status !== 'active') {
+    if (!user || user.status !== 'active') {
       console.log('❌ Auth failed: User not found or inactive');
       return errorResponse(res, 'Invalid token. User not found or inactive.', 401);
     }
 
-    req.user = employee;
-    console.log(`✅ Auth success: ${employee.name} (${employee.role})`);
+    req.user = user;
+    console.log(`✅ Auth success: ${user.name} (${user.role})`);
     next();
   } catch (error) {
     console.error(`❌ Auth error: ${error.name} - ${error.message}`);

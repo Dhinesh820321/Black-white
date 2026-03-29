@@ -5,7 +5,6 @@ const getAllInvoices = async (req, res, next) => {
   try {
     let { branch_id, customer_id, employee_id, payment_type, date, start_date, end_date, month, year } = req.query;
     
-    // Normalize empty strings to null to prevent DB errors
     branch_id = branch_id || null;
     customer_id = customer_id || null;
     employee_id = employee_id || null;
@@ -16,7 +15,22 @@ const getAllInvoices = async (req, res, next) => {
     month = month || null;
     year = year || null;
 
-    const invoices = await Invoice.findAll({ branch_id, customer_id, employee_id, payment_type, date, start_date, end_date, month, year });
+    let invoices = await Invoice.findAll({ branch_id, customer_id, employee_id, payment_type, date, start_date, end_date, month, year });
+    invoices = invoices.map(inv => {
+      if (inv.branch_id && typeof inv.branch_id === 'object') {
+        inv.branch_name = inv.branch_id.name;
+        inv.branch_id = inv.branch_id._id || inv.branch_id.id;
+      }
+      if (inv.customer_id && typeof inv.customer_id === 'object') {
+        inv.customer_name = inv.customer_id.name;
+        inv.customer_id = inv.customer_id._id || inv.customer_id.id;
+      }
+      if (inv.employee_id && typeof inv.employee_id === 'object') {
+        inv.employee_name = inv.employee_id.name;
+        inv.employee_id = inv.employee_id._id || inv.employee_id.id;
+      }
+      return inv;
+    });
     return successResponse(res, invoices);
   } catch (error) {
     next(error);

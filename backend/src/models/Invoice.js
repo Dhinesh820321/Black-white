@@ -12,7 +12,7 @@ const invoiceItemSchema = new mongoose.Schema({
 const invoiceSchema = new mongoose.Schema({
   branch_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch', required: true },
   customer_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Customer' },
-  employee_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Employee', required: true },
+  employee_id: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   invoice_number: { type: String, unique: true },
   items: [invoiceItemSchema],
   total_amount: { type: Number, required: true },

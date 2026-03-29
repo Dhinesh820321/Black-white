@@ -1,14 +1,15 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
-const { v4: uuidv4 } = require('uuid');
 const jwt = require('jsonwebtoken');
-const { successResponse, errorResponse } = require('../utils/responseHelper');
-const Employee = require('../models/Employee');
+const { v4: uuidv4 } = require('uuid');
+const User = require('../models/User');
 const { OTPModel, SessionModel } = require('../models/Auth');
+const { successResponse, errorResponse } = require('../utils/responseHelper');
+const { isWithinRadius } = require('../utils/geofencing');
 
-const generateOTP = () => {
-  return Math.floor(100000 + Math.random() * 900000).toString();
-};
+const ENABLE_GEOFENCING = process.env.ENABLE_GEOFENCING !== 'false';
+
+// ==================== HELPERS ====================
 
 const generateTempPassword = () => {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -19,46 +20,229 @@ const generateTempPassword = () => {
   return password + '@1';
 };
 
-const sendOTP = async (phone, otp) => {
-  console.log(`📱 OTP/Credentials for ${phone}: ${otp}`);
-  return true;
+const generateOTP = () => {
+  return Math.floor(100000 + Math.random() * 900000).toString();
 };
 
-const createEmployee = async (req, res, next) => {
-  try {
-    const { name, role, phone, branch_id, salary, send_creds = true } = req.body;
+const generateToken = (user) => {
+  return jwt.sign(
+    {
+      id: user._id || user.id,
+      role: user.role,
+      phone: user.phone,
+      branch_id: user.branch_id?._id || user.branch_id?.id || user.branch_id
+    },
+    process.env.JWT_SECRET,
+    { expiresIn: '24h' }
+  );
+};
 
-    const existing = await Employee.findByPhone(phone);
-    if (existing) {
-      return errorResponse(res, 'Phone number already registered', 400);
+const flattenUser = (user) => {
+  const { password, ...safeUser } = user;
+  if (safeUser.branch_id && typeof safeUser.branch_id === 'object') {
+    safeUser.branch_name = safeUser.branch_id.name;
+    safeUser.branch_id = safeUser.branch_id._id || safeUser.branch_id.id;
+  }
+  return safeUser;
+};
+
+// ==================== ADMIN LOGIN ====================
+
+const adminLogin = async (req, res, next) => {
+  try {
+    const { phone, password } = req.body;
+    console.log('🔐 ADMIN LOGIN ATTEMPT:', { phone });
+
+    // Validate inputs
+    if (!phone || !password) {
+      return errorResponse(res, 'Phone and password are required', 400);
     }
 
-    const tempPassword = generateTempPassword();
-    const employee = await Employee.create({
-      name, role, phone, password: tempPassword, branch_id, salary
+    // Find user by phone
+    const user = await User.findByPhone(phone);
+    console.log('👤 User found:', user ? { id: user._id, name: user.name, role: user.role } : 'NOT FOUND');
+
+    if (!user) {
+      return errorResponse(res, 'Invalid credentials', 401);
+    }
+
+    // Check if user is admin
+    if (user.role !== 'admin') {
+      console.log('❌ Not an admin:', user.role);
+      return errorResponse(res, 'Access denied. Admin login only.', 403);
+    }
+
+    // Check if account is active
+    if (user.status !== 'active') {
+      return errorResponse(res, 'Account is inactive', 403);
+    }
+
+    // Check password exists
+    if (!user.password) {
+      return errorResponse(res, 'Password not set. Please reset your password.', 400);
+    }
+
+    // Verify password
+    let isValidPassword = false;
+    try {
+      isValidPassword = await bcrypt.compare(password, user.password);
+    } catch (err) {
+      console.error('❌ Bcrypt error:', err.message);
+      return errorResponse(res, 'Authentication failed', 500);
+    }
+
+    if (!isValidPassword) {
+      console.log('❌ Invalid password');
+      return errorResponse(res, 'Invalid credentials', 401);
+    }
+
+    // Generate token
+    const token = generateToken(user);
+
+    // Save session
+    await SessionModel.create({
+      user_id: user._id,
+      token,
+      device_id: req.body.device_id,
+      ip_address: req.ip
     });
 
-    if (send_creds) {
-      await sendOTP(phone, tempPassword);
-    }
-
+    console.log('✅ Admin login successful:', user.name);
     return successResponse(res, {
-      ...employee,
-      temp_password: send_creds ? tempPassword : undefined,
-      message: send_creds ? 'Credentials sent via SMS' : 'Employee created successfully'
-    }, 'Employee created successfully', 201);
+      token,
+      user: flattenUser(user)
+    }, 'Admin login successful');
+
   } catch (error) {
+    console.error('❌ ADMIN LOGIN ERROR:', error.message);
     next(error);
   }
 };
 
+// ==================== EMPLOYEE LOGIN (WITH GEOFENCING) ====================
+
+const employeeLogin = async (req, res, next) => {
+  try {
+    const { phone, password, latitude, longitude, device_id } = req.body;
+    console.log('🔐 EMPLOYEE LOGIN ATTEMPT:', { phone, hasLocation: !!latitude, geofencingEnabled: ENABLE_GEOFENCING });
+
+    // Validate inputs
+    if (!phone || !password) {
+      return errorResponse(res, 'Phone and password are required', 400);
+    }
+
+    // Find user by phone
+    const user = await User.findByPhone(phone);
+    console.log('👤 User found:', user ? { id: user._id, name: user.name, role: user.role } : 'NOT FOUND');
+
+    if (!user) {
+      return errorResponse(res, 'Invalid credentials', 401);
+    }
+
+    // Check if user is employee
+    if (user.role !== 'employee') {
+      console.log('❌ Not an employee:', user.role);
+      return errorResponse(res, 'Access denied. Employee login only.', 403);
+    }
+
+    // Check if account is active
+    if (user.status !== 'active') {
+      return errorResponse(res, 'Account is inactive', 403);
+    }
+
+    // Check password exists
+    if (!user.password) {
+      return errorResponse(res, 'Password not set. Please contact admin.', 400);
+    }
+
+    // Verify password
+    let isValidPassword = false;
+    try {
+      isValidPassword = await bcrypt.compare(password, user.password);
+    } catch (err) {
+      console.error('❌ Bcrypt error:', err.message);
+      return errorResponse(res, 'Authentication failed', 500);
+    }
+
+    if (!isValidPassword) {
+      console.log('❌ Invalid password');
+      return errorResponse(res, 'Invalid credentials', 401);
+    }
+
+    // ==================== GEOFENCING CHECK ====================
+    if (ENABLE_GEOFENCING && user.geo_lat && user.geo_long) {
+      if (!latitude || !longitude) {
+        console.log('❌ Location required for employee login');
+        return errorResponse(res, 'Location access required for employee login', 400);
+      }
+
+      const radius = user.geo_radius || 100;
+
+      const distance = Math.sqrt(
+        Math.pow((latitude - user.geo_lat) * 111000, 2) +
+        Math.pow((longitude - user.geo_long) * 111000 * Math.cos(latitude * Math.PI / 180), 2)
+      );
+
+      const isInRange = isWithinRadius(
+        parseFloat(latitude),
+        parseFloat(longitude),
+        user.geo_lat,
+        user.geo_long,
+        radius
+      );
+
+      console.log('📍 Geo check:', {
+        userLocation: { lat: latitude, lng: longitude },
+        branchLocation: { lat: user.geo_lat, lng: user.geo_long },
+        radius: radius,
+        distance: Math.round(distance),
+        isInRange
+      });
+
+      if (!isInRange) {
+        console.log('❌ Outside branch radius');
+        return errorResponse(res, `You must be within ${radius}m of the branch to login. Distance: ${Math.round(distance)}m`, 403);
+      }
+    }
+
+    // Generate token
+    const token = generateToken(user);
+
+    // Save session
+    await SessionModel.create({
+      user_id: user._id,
+      token,
+      device_id,
+      ip_address: req.ip
+    });
+
+    console.log('✅ Employee login successful:', user.name);
+    return successResponse(res, {
+      token,
+      user: flattenUser(user)
+    }, 'Employee login successful');
+
+  } catch (error) {
+    console.error('❌ EMPLOYEE LOGIN ERROR:', error.message);
+    next(error);
+  }
+};
+
+// ==================== OTP FLOW ====================
+
 const requestOTP = async (req, res, next) => {
   try {
     const { phone } = req.body;
-    const employee = await Employee.findByPhone(phone);
+    console.log('📱 OTP REQUEST:', { phone });
 
-    if (!employee || employee.status !== 'active') {
-      return errorResponse(res, 'Employee not found or inactive', 404);
+    const user = await User.findByPhone(phone);
+
+    if (!user) {
+      return successResponse(res, { message: 'If phone exists, OTP will be sent' });
+    }
+
+    if (user.status !== 'active') {
+      return successResponse(res, { message: 'If phone exists, OTP will be sent' });
     }
 
     const otp = generateOTP();
@@ -66,93 +250,132 @@ const requestOTP = async (req, res, next) => {
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
 
     await OTPModel.create({ phone, otp: hashedOTP, expires_at: expiresAt });
-    await sendOTP(phone, otp);
+
+    console.log(`📱 OTP for ${phone}: ${otp} (expires: ${expiresAt})`);
 
     return successResponse(res, {
       message: 'OTP sent successfully',
       expires_in: '5 minutes',
       demo_otp: otp
     });
+
   } catch (error) {
+    console.error('❌ OTP REQUEST ERROR:', error.message);
     next(error);
   }
 };
 
 const verifyOTP = async (req, res, next) => {
   try {
-    const { phone, otp, device_id } = req.body;
+    const { phone, otp } = req.body;
+    console.log('🔐 OTP VERIFY:', { phone, otpReceived: otp });
 
-    const otpRecord = await OTPModel.findOne({ phone, expires_at: { $gt: new Date() } }).sort({ created_at: -1 });
+    const otpRecord = await OTPModel.findOne({
+      phone,
+      expires_at: { $gt: new Date() },
+      verified: false
+    }).sort({ created_at: -1 });
 
+    console.log('📋 OTP RECORD:', otpRecord ? 'found' : 'not found');
+    
     if (!otpRecord) {
-      return errorResponse(res, 'OTP expired or not requested', 400);
+      const expiredRecord = await OTPModel.findOne({ phone, verified: false }).sort({ createdAt: -1 });
+      if (expiredRecord) {
+        console.log('⏰ OTP expired at:', expiredRecord.expires_at);
+      }
+      return errorResponse(res, 'OTP expired or invalid', 400);
     }
 
     const isValid = await bcrypt.compare(otp, otpRecord.otp);
+    console.log('🔑 OTP comparison:', isValid ? 'match' : 'no match');
     if (!isValid) {
       return errorResponse(res, 'Invalid OTP', 400);
     }
 
+    // Mark OTP as verified
     otpRecord.verified = true;
     await otpRecord.save();
 
-    const employee = await Employee.findByPhone(phone);
-    const token = jwt.sign(
-      { id: employee._id || employee.id, role: employee.role, phone: employee.phone },
+    // Generate temporary reset token
+    const resetToken = jwt.sign(
+      { phone, purpose: 'password_reset' },
       process.env.JWT_SECRET,
-      { expiresIn: '24h' }
+      { expiresIn: '15 minutes' }
     );
 
-    await SessionModel.create({ employee_id: employee._id || employee.id, token, device_id, ip_address: req.ip });
+    console.log('✅ OTP verified:', phone);
+    return successResponse(res, {
+      reset_token: resetToken,
+      message: 'OTP verified. Use reset_token to change password.'
+    });
 
-    return successResponse(res, { token, user: employee, auth_method: 'otp' }, 'OTP verified successfully');
   } catch (error) {
+    console.error('❌ OTP VERIFY ERROR:', error.message);
     next(error);
   }
 };
 
-const passwordLogin = async (req, res, next) => {
+const resetPassword = async (req, res, next) => {
   try {
-    const { phone, password, device_id, latitude, longitude } = req.body;
+    const { reset_token, new_password } = req.body;
+    console.log('🔐 PASSWORD RESET');
 
-    const employee = await Employee.findByPhone(phone);
-
-    if (!employee) {
-      return errorResponse(res, 'Invalid credentials', 401);
+    if (!reset_token || !new_password) {
+      return errorResponse(res, 'Reset token and new password are required', 400);
     }
 
-    if (employee.status !== 'active') {
-      return errorResponse(res, 'Account is inactive', 403);
+    if (new_password.length < 6) {
+      return errorResponse(res, 'Password must be at least 6 characters', 400);
     }
 
-    const isValidPassword = await bcrypt.compare(password, employee.password);
-    // Geofencing logic (if branch has coordinates)
-    if (employee.geo_latitude && latitude) {
-      const { isWithinRadius } = require('../utils/geofencing');
-      const inRange = isWithinRadius(
-        parseFloat(latitude), parseFloat(longitude),
-        employee.geo_latitude, employee.geo_longitude,
-        employee.geo_radius || 100
-      );
-      if (!inRange) {
-        return errorResponse(res, 'Outside allowed location.', 403);
+    // Verify reset token
+    let decoded;
+    try {
+      decoded = jwt.verify(reset_token, process.env.JWT_SECRET);
+    } catch (err) {
+      return errorResponse(res, 'Invalid or expired reset token', 401);
+    }
+
+    if (decoded.purpose !== 'password_reset') {
+      return errorResponse(res, 'Invalid token', 401);
+    }
+
+    // Find user
+    const user = await User.findByPhone(decoded.phone);
+    if (!user) {
+      return errorResponse(res, 'User not found', 404);
+    }
+
+    // Hash new password
+    const hashedPassword = await bcrypt.hash(new_password, 10);
+
+    // Update password
+    await UserModel.findByIdAndUpdate(
+      user._id || user.id,
+      {
+        password: hashedPassword,
+        password_changed_at: new Date()
       }
-    }
-
-    const token = jwt.sign(
-      { id: employee._id || employee.id, role: employee.role, phone: employee.phone, branch_id: employee.branch_id?._id || employee.branch_id?.id },
-      process.env.JWT_SECRET,
-      { expiresIn: '24h' }
     );
 
-    await SessionModel.create({ employee_id: employee._id || employee.id, token, device_id, ip_address: req.ip });
+    console.log('✅ Password reset successful:', decoded.phone);
+    return successResponse(res, { message: 'Password reset successful' });
 
-    const { password: _, ...safeEmployee } = employee;
-    return successResponse(res, {
-      token,
-      user: safeEmployee,
-      is_first_login: !employee.password_changed_at
-    }, 'Login successful');
+  } catch (error) {
+    console.error('❌ PASSWORD RESET ERROR:', error.message);
+    next(error);
+  }
+};
+
+// ==================== PROFILE ====================
+
+const getProfile = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.user._id || req.user.id);
+    if (!user) {
+      return errorResponse(res, 'User not found', 404);
+    }
+    return successResponse(res, flattenUser(user));
   } catch (error) {
     next(error);
   }
@@ -160,93 +383,40 @@ const passwordLogin = async (req, res, next) => {
 
 const changePassword = async (req, res, next) => {
   try {
-    const { currentPassword, newPassword } = req.body;
-    const employee = await Employee.findById(req.user._id || req.user.id);
+    const { current_password, new_password } = req.body;
 
-    if (!employee) return errorResponse(res, 'User not found', 404);
+    const user = await UserModel.findById(req.user._id || req.user.id);
+    if (!user) {
+      return errorResponse(res, 'User not found', 404);
+    }
 
-    const isValid = await Employee.verifyPassword(currentPassword, employee.password);
-    if (!isValid) return errorResponse(res, 'Current password incorrect', 400);
+    const isValid = await bcrypt.compare(current_password, user.password);
+    if (!isValid) {
+      return errorResponse(res, 'Current password is incorrect', 400);
+    }
 
-    await Employee.update(req.user._id || req.user.id, { 
-      password: newPassword, 
-      password_changed_at: new Date() 
-    });
+    const hashedPassword = await bcrypt.hash(new_password, 10);
+    await UserModel.findByIdAndUpdate(
+      user._id,
+      {
+        password: hashedPassword,
+        password_changed_at: new Date()
+      }
+    );
 
-    return successResponse(res, null, 'Password changed successfully');
-  } catch (error) {
-    next(error);
-  }
-};
-
-const resetPassword = async (req, res, next) => {
-  try {
-    const { phone } = req.body;
-    const employee = await Employee.findByPhone(phone);
-    if (!employee) return errorResponse(res, 'Employee not found', 404);
-
-    const tempPassword = generateTempPassword();
-    await Employee.update(employee._id || employee.id, { 
-      password: tempPassword, 
-      password_changed_at: null 
-    });
-
-    await sendOTP(phone, `Temporary password: ${tempPassword}`);
-    return successResponse(res, { message: 'Temp password sent', demo_password: tempPassword });
-  } catch (error) {
-    next(error);
-  }
-};
-
-const getSessions = async (req, res, next) => {
-  try {
-    const sessions = await SessionModel.find({ employee_id: req.user._id || req.user.id })
-      .sort({ login_time: -1 }).limit(10).lean();
-    return successResponse(res, sessions);
-  } catch (error) {
-    next(error);
-  }
-};
-
-const logoutSession = async (req, res, next) => {
-  try {
-    await SessionModel.findByIdAndUpdate(req.params.session_id, { $set: { logout_time: new Date() } });
-    return successResponse(res, null, 'Session logged out');
-  } catch (error) {
-    next(error);
-  }
-};
-
-const getProfile = async (req, res, next) => {
-  try {
-    const employee = await Employee.findById(req.user._id || req.user.id);
-    return successResponse(res, employee);
-  } catch (error) {
-    next(error);
-  }
-};
-
-const updateProfile = async (req, res, next) => {
-  try {
-    const employee = await Employee.update(req.user._id || req.user.id, req.body);
-    return successResponse(res, employee);
-  } catch (error) {
-    next(error);
-  }
-};
-
-const updateDevice = async (req, res, next) => {
-  try {
-    const { new_device_id } = req.body;
-    await Employee.update(req.user._id || req.user.id, { device_id: new_device_id });
-    return successResponse(res, null, 'Device updated successfully');
+    return successResponse(res, { message: 'Password changed successfully' });
   } catch (error) {
     next(error);
   }
 };
 
 module.exports = {
-  createEmployee, requestOTP, verifyOTP, passwordLogin,
-  changePassword, resetPassword, getSessions, logoutSession,
-  getProfile, updateProfile, updateDevice
+  adminLogin,
+  employeeLogin,
+  requestOTP,
+  verifyOTP,
+  resetPassword,
+  getProfile,
+  changePassword,
+  generateTempPassword
 };

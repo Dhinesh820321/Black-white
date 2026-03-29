@@ -44,8 +44,12 @@ api.interceptors.response.use(
 );
 
 export const authAPI = {
-  login: (data) => api.post('/auth/login/password', data),
+  // Employee login with geofencing
+  login: (data) => api.post('/auth/employee/login', data),
   getProfile: () => api.get('/auth/profile'),
+  requestOTP: (data) => api.post('/auth/otp/request', data),
+  verifyOTP: (data) => api.post('/auth/otp/verify', data),
+  resetPassword: (data) => api.post('/auth/password/reset', data),
 };
 
 export const attendanceAPI = {

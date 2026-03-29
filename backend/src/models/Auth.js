@@ -10,7 +10,7 @@ const otpSchema = new mongoose.Schema({
 });
 
 const sessionSchema = new mongoose.Schema({
-  employee_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Employee', required: true },
+  user_id: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   token: { type: String, required: true },
   device_id: { type: String },
   ip_address: { type: String },

@@ -4,7 +4,14 @@ const { successResponse, errorResponse } = require('../utils/responseHelper');
 const getAllInventory = async (req, res, next) => {
   try {
     const { branch_id, category, low_stock, search } = req.query;
-    const inventory = await Inventory.findAll({ branch_id, category, low_stock, search });
+    let inventory = await Inventory.findAll({ branch_id, category, low_stock, search });
+    inventory = inventory.map(item => {
+      if (item.branch_id && typeof item.branch_id === 'object') {
+        item.branch_name = item.branch_id.name;
+        item.branch_id = item.branch_id._id || item.branch_id.id;
+      }
+      return item;
+    });
     return successResponse(res, inventory);
   } catch (error) {
     next(error);

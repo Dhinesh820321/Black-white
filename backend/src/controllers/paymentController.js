@@ -4,7 +4,18 @@ const { successResponse, errorResponse } = require('../utils/responseHelper');
 const getAllPayments = async (req, res, next) => {
   try {
     const { branch_id, employee_id, payment_type, date, start_date, end_date, month, year } = req.query;
-    const payments = await Payment.findAll({ branch_id, employee_id, payment_type, date, start_date, end_date, month, year });
+    let payments = await Payment.findAll({ branch_id, employee_id, payment_type, date, start_date, end_date, month, year });
+    payments = payments.map(p => {
+      if (p.branch_id && typeof p.branch_id === 'object') {
+        p.branch_name = p.branch_id.name;
+        p.branch_id = p.branch_id._id || p.branch_id.id;
+      }
+      if (p.employee_id && typeof p.employee_id === 'object') {
+        p.employee_name = p.employee_id.name;
+        p.employee_id = p.employee_id._id || p.employee_id.id;
+      }
+      return p;
+    });
     return successResponse(res, payments);
   } catch (error) {
     next(error);

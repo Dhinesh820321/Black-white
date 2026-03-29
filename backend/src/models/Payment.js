@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 
 const paymentSchema = new mongoose.Schema({
   branch_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch', required: true },
-  employee_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Employee', required: true },
+  employee_id: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   invoice_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Invoice' },
   amount: { type: Number, required: true },
   payment_type: { type: String, enum: ['CASH', 'UPI', 'CARD'], required: true },

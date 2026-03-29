@@ -5,7 +5,19 @@ const { successResponse, errorResponse } = require('../utils/responseHelper');
 const getAllAttendance = async (req, res, next) => {
   try {
     const { branch_id, employee_id, date, start_date, end_date, status } = req.query;
-    const attendance = await Attendance.findAll({ branch_id, employee_id, date, start_date, end_date, status });
+    let attendance = await Attendance.findAll({ branch_id, employee_id, date, start_date, end_date, status });
+    attendance = attendance.map(record => {
+      if (record.branch_id && typeof record.branch_id === 'object') {
+        record.branch_name = record.branch_id.name;
+        record.branch_id = record.branch_id._id || record.branch_id.id;
+      }
+      if (record.employee_id && typeof record.employee_id === 'object') {
+        record.employee_name = record.employee_id.name;
+        record.employee_role = record.employee_id.role;
+        record.employee_id = record.employee_id._id || record.employee_id.id;
+      }
+      return record;
+    });
     return successResponse(res, attendance);
   } catch (error) {
     next(error);

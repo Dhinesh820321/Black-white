@@ -43,7 +43,7 @@ const getDashboard = async (req, res, next) => {
     const retentionAlerts = await Customer.getRetentionAlerts(branch_id);
     
     // For large datasets, use countDocuments()
-    const EmployeeModel = mongoose.model('Employee');
+    const UserModel = mongoose.model('User');
     const CustomerModel = mongoose.model('Customer');
     const totalCustomers = await CustomerModel.countDocuments();
 
@@ -105,9 +105,9 @@ const getRevenueChart = async (req, res, next) => {
 
 const getTopPerformers = async (req, res, next) => {
   try {
-    const EmployeeModel = mongoose.model('Employee');
-    const employees = await EmployeeModel.find({ status: 'active' }).limit(10).lean();
-    return successResponse(res, employees.map(e => ({ ...e, services: 0, revenue: 0 })));
+    const UserModel = mongoose.model('User');
+    const employees = await UserModel.find({ role: 'employee', status: 'active' }).limit(10).lean();
+    return successResponse(res, employees.map(e => ({ ...e, password: undefined, services: 0, revenue: 0 })));
   } catch (error) {
     next(error);
   }

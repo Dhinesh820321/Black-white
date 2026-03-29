@@ -13,13 +13,39 @@ const getDailyReport = async (req, res, next) => {
     const revenue = await Invoice.getDailyRevenue(branch_id, targetDate);
 
     // 2. Attendance Records
-    const attendance = await Attendance.findAll({ branch_id, date: targetDate });
+    let attendance = await Attendance.findAll({ branch_id, date: targetDate });
+    attendance = attendance.map(record => {
+      if (record.branch_id && typeof record.branch_id === 'object') {
+        record.branch_name = record.branch_id.name;
+        record.branch_id = record.branch_id._id || record.branch_id.id;
+      }
+      if (record.employee_id && typeof record.employee_id === 'object') {
+        record.employee_name = record.employee_id.name;
+        record.employee_id = record.employee_id._id || record.employee_id.id;
+      }
+      return record;
+    });
 
     // 3. Expenses
     const expenseData = await Expense.getSummary(branch_id, targetDate, targetDate);
 
     // 4. Detailed Invoices
-    const invoices = await Invoice.findAll({ branch_id, date: targetDate });
+    let invoices = await Invoice.findAll({ branch_id, date: targetDate });
+    invoices = invoices.map(inv => {
+      if (inv.branch_id && typeof inv.branch_id === 'object') {
+        inv.branch_name = inv.branch_id.name;
+        inv.branch_id = inv.branch_id._id || inv.branch_id.id;
+      }
+      if (inv.customer_id && typeof inv.customer_id === 'object') {
+        inv.customer_name = inv.customer_id.name;
+        inv.customer_id = inv.customer_id._id || inv.customer_id.id;
+      }
+      if (inv.employee_id && typeof inv.employee_id === 'object') {
+        inv.employee_name = inv.employee_id.name;
+        inv.employee_id = inv.employee_id._id || inv.employee_id.id;
+      }
+      return inv;
+    });
 
     return successResponse(res, {
       date: targetDate,
@@ -130,11 +156,11 @@ const getBranchPerformanceReport = async (req, res, next) => {
 const getEmployeePerformanceReport = async (req, res, next) => {
   try {
     const { branch_id, start_date, end_date } = req.query;
-    const EmployeeModel = mongoose.model('Employee');
-    const filter = { status: 'active' };
+    const UserModel = mongoose.model('User');
+    const filter = { role: 'employee', status: 'active' };
     if (branch_id && mongoose.Types.ObjectId.isValid(branch_id)) filter.branch_id = branch_id;
 
-    const employees = await EmployeeModel.find(filter).populate('branch_id', 'name').lean();
+    const employees = await UserModel.find(filter).populate('branch_id', 'name').lean();
 
     const performanceData = await Promise.all(employees.map(async (emp) => {
       // In a real app, use complex aggregations. For now, we return empty stats.

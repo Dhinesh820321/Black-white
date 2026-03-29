@@ -16,7 +16,7 @@ const inventorySchema = new mongoose.Schema({
 
 const usageSchema = new mongoose.Schema({
   inventory_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Inventory', required: true },
-  employee_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Employee', required: true },
+  employee_id: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   quantity_used: { type: Number, required: true },
   service_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Service' },
   created_at: { type: Date, default: Date.now }

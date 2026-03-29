@@ -62,7 +62,7 @@ const resetAdmin = async () => {
 
     console.log('\n✅ Admin verification complete!');
     console.log('\n📝 LOGIN CREDENTIALS:');
-    console.log('   Phone: 9999999999');
+    console.log('   Phone: 9865314356');
     console.log('   Password: admin123');
     console.log('\n⚠️  NOTE: This system uses PHONE number, not email!');
     console.log('   Do NOT use admin@gmail.com - use 9999999999 instead.');

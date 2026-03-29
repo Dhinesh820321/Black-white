@@ -4,7 +4,18 @@ const { successResponse, errorResponse } = require('../utils/responseHelper');
 const getAllExpenses = async (req, res, next) => {
   try {
     const { branch_id, category, date, start_date, end_date, month, year } = req.query;
-    const expenses = await Expense.findAll({ branch_id, category, date, start_date, end_date, month, year });
+    let expenses = await Expense.findAll({ branch_id, category, date, start_date, end_date, month, year });
+    expenses = expenses.map(exp => {
+      if (exp.branch_id && typeof exp.branch_id === 'object') {
+        exp.branch_name = exp.branch_id.name;
+        exp.branch_id = exp.branch_id._id || exp.branch_id.id;
+      }
+      if (exp.created_by && typeof exp.created_by === 'object') {
+        exp.created_by_name = exp.created_by.name;
+        exp.created_by = exp.created_by._id || exp.created_by.id;
+      }
+      return exp;
+    });
     return successResponse(res, expenses);
   } catch (error) {
     next(error);

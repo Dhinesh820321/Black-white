@@ -52,13 +52,21 @@ api.interceptors.response.use(
 );
 
 export const authAPI = {
+  // Admin login
+  adminLogin: (data) => api.post('/auth/admin/login', data),
+  // Employee login (with geofencing)
+  employeeLogin: (data) => api.post('/auth/employee/login', data),
+  // Legacy login (auto-detects role)
   login: (data) => api.post('/auth/login/password', data),
-  requestOTP: (data) => api.post('/auth/login/otp/request', data),
-  verifyOTP: (data) => api.post('/auth/login/otp/verify', data),
-  register: (data) => api.post('/auth/register', data),
+  // OTP flow
+  requestOTP: (data) => api.post('/auth/otp/request', data),
+  verifyOTP: (data) => api.post('/auth/otp/verify', data),
+  resetPassword: (data) => api.post('/auth/password/reset', data),
+  // Profile
   getProfile: () => api.get('/auth/profile'),
-  updateProfile: (data) => api.put('/auth/profile', data),
-  changePassword: (data) => api.post('/auth/change-password', data)
+  changePassword: (data) => api.post('/auth/password/change', data),
+  // Check admin
+  checkAdmin: () => api.get('/auth/check-admin')
 };
 
 export const branchesAPI = {

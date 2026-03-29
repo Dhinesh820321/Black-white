@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const branchSchema = new mongoose.Schema({
   name: { type: String, required: true },
   location: { type: String, required: true },
-  manager_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Employee' },
+  manager_id: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   geo_latitude: { type: Number },
   geo_longitude: { type: Number },
   geo_radius: { type: Number, default: 100 },

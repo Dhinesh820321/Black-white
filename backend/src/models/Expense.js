@@ -6,7 +6,7 @@ const expenseSchema = new mongoose.Schema({
   amount: { type: Number, required: true },
   category: { type: String, default: 'misc' },
   receipt_image: { type: String },
-  created_by: { type: mongoose.Schema.Types.ObjectId, ref: 'Employee' }
+  created_by: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
 }, {
   timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }
 });

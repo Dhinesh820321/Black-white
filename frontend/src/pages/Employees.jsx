@@ -185,7 +185,7 @@ export default function Employees() {
                         {emp.role}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{emp.branch_name || '-'}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">{emp.branch_name|| '-'}</td>
                     <td className="px-4 py-3 text-sm text-gray-600">{emp.phone}</td>
                     <td className="px-4 py-3 text-sm text-gray-600">₹{emp.salary?.toLocaleString()}</td>
                     <td className="px-4 py-3">

@@ -110,11 +110,10 @@ router.get('/:id/performance', employeeController.getEmployeePerformance);
  *       500:
  *         description: Server Error
  */
-router.post('/', authorize('admin', 'manager'), [
+router.post('/', authorize('admin'), [
   body('name').notEmpty().withMessage('Name is required'),
   body('phone').isMobilePhone('any').withMessage('Valid phone required'),
-  body('password').isLength({ min: 6 }).withMessage('Password min 6 chars'),
-  body('role').isIn(['admin', 'manager', 'stylist', 'helper']).withMessage('Invalid role')
+  body('password').isLength({ min: 6 }).withMessage('Password min 6 chars')
 ], validate, employeeController.createEmployee);
 
 /**
