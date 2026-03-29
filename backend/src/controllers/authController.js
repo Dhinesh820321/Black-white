@@ -143,6 +143,8 @@ const passwordLogin = async (req, res, next) => {
   try {
     const { phone, password, device_id, latitude, longitude } = req.body;
 
+    console.log('🔐 LOGIN ATTEMPT:', { phone, hasPassword: !!password });
+
     const [employees] = await pool.query(
       `SELECT e.*, b.geo_latitude, b.geo_longitude, b.geo_radius, b.name as branch_name 
        FROM employees e 
@@ -151,19 +153,27 @@ const passwordLogin = async (req, res, next) => {
       [phone]
     );
 
+    console.log('📊 Query result:', employees.length > 0 ? `Found: ${employees[0].name} (${employees[0].role})` : 'No user found');
+
     if (employees.length === 0) {
-      return errorResponse(res, 'Invalid credentials', 401);
+      console.log('❌ Login failed: Employee not found with phone', phone);
+      return errorResponse(res, 'Employee not found. Please check your phone number.', 401);
     }
 
     const employee = employees[0];
 
     if (employee.status !== 'active') {
+      console.log('❌ Login failed: Account inactive for', employee.name);
       return errorResponse(res, 'Account is inactive', 403);
     }
 
+    console.log('🔑 Comparing password...');
     const isValidPassword = await bcrypt.compare(password, employee.password);
+    console.log('🔑 Password valid:', isValidPassword);
+    
     if (!isValidPassword) {
-      return errorResponse(res, 'Invalid credentials', 401);
+      console.log('❌ Login failed: Invalid password for', employee.name);
+      return errorResponse(res, 'Invalid password. Please check your password.', 401);
     }
 
     if (employee.geo_latitude && employee.geo_longitude && latitude && longitude) {

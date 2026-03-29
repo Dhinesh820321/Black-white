@@ -25,22 +25,29 @@ const getCustomer = async (req, res, next) => {
 
 const createCustomer = async (req, res, next) => {
   try {
+    console.log('📝 POST /customers - Request body:', req.body);
     const { name, phone, email, notes } = req.body;
     const customer = await Customer.create({ name, phone, email, notes });
+    console.log('✅ Customer created:', customer);
     return successResponse(res, customer, 'Customer created successfully', 201);
   } catch (error) {
+    console.error('❌ Error creating customer:', error.message);
     next(error);
   }
 };
 
 const updateCustomer = async (req, res, next) => {
   try {
+    console.log(`📝 PUT /customers/${req.params.id} - Request body:`, req.body);
     const customer = await Customer.update(req.params.id, req.body);
     if (!customer) {
+      console.log('⚠️ Customer not found:', req.params.id);
       return errorResponse(res, 'Customer not found', 404);
     }
+    console.log('✅ Customer updated:', customer);
     return successResponse(res, customer, 'Customer updated successfully');
   } catch (error) {
+    console.error('❌ Error updating customer:', error.message);
     next(error);
   }
 };

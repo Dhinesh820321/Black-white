@@ -27,23 +27,30 @@ const getEmployee = async (req, res, next) => {
 
 const createEmployee = async (req, res, next) => {
   try {
+    console.log('📝 POST /employees - Request body:', req.body);
     const { name, role, phone, password, branch_id, salary } = req.body;
     const employee = await Employee.create({ name, role, phone, password, branch_id, salary });
+    console.log('✅ Employee created:', employee);
     return successResponse(res, employee, 'Employee created successfully', 201);
   } catch (error) {
+    console.error('❌ Error creating employee:', error.message);
     next(error);
   }
 };
 
 const updateEmployee = async (req, res, next) => {
   try {
+    console.log(`📝 PUT /employees/${req.params.id} - Request body:`, req.body);
     const employee = await Employee.update(req.params.id, req.body);
     if (!employee) {
+      console.log('⚠️ Employee not found:', req.params.id);
       return errorResponse(res, 'Employee not found', 404);
     }
     employee.password = undefined;
+    console.log('✅ Employee updated:', employee);
     return successResponse(res, employee, 'Employee updated successfully');
   } catch (error) {
+    console.error('❌ Error updating employee:', error.message);
     next(error);
   }
 };

@@ -72,16 +72,49 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json'
   },
-  timeout: 5000
+  timeout: 10000
 });
+
+api.interceptors.request.use((config) => {
+  console.log(`🔵 API Request: ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`, {
+    data: config.data,
+    params: config.params
+  });
+  return config;
+});
+
+api.interceptors.response.use(
+  (response) => {
+    console.log(`🟢 API Response: ${response.status} ${response.config.url}`, response.data);
+    return response;
+  },
+  (error) => {
+    console.error(`🔴 API Error: ${error.config?.url}`, {
+      status: error.response?.status,
+      message: error.response?.data?.message || error.message,
+      data: error.response?.data
+    });
+    return Promise.reject(error);
+  }
+);
 
 if (USE_MOCK) {
   api.interceptors.request.use((config) => {
+    console.log(`🔵 [MOCK] Intercepted ${config.method?.toUpperCase()} ${config.url}`);
+    
+    const path = config.url.replace('/api', '');
+    
+    if (['POST', 'PUT', 'DELETE'].includes(config.method?.toUpperCase())) {
+      console.warn(`⚠️ [MOCK] ${config.method?.toUpperCase()} request - Mock mode does not support mutations. Set VITE_USE_MOCK=false to use real backend.`);
+      throw {
+        __MOCK__: true,
+        __MOCK_ERROR__: true,
+        message: `Mock mode: Cannot ${config.method} data. Disable mock mode for write operations.`
+      };
+    }
+    
     const mockResponses = {
-      '/auth/login': () => mockAuth(config.data ? JSON.parse(config.data) : {}),
       '/dashboard': mockDashboard,
-      '/dashboard/revenue-chart': mockRevenueChart,
-      '/dashboard/top-performers': mockTopPerformers,
       '/branches': mockData.branches,
       '/employees': mockData.employees,
       '/services': mockData.services,
@@ -93,29 +126,29 @@ if (USE_MOCK) {
       '/attendance/today': mockData.attendance
     };
     
-    const path = config.url.replace('/api', '');
     const mockResponse = mockResponses[path];
     
     if (mockResponse) {
-      if (typeof mockResponse === 'function') {
-        const result = mockResponse();
-        throw { __MOCK__: true, data: result };
-      } else {
-        throw { __MOCK__: true, data: mockResponse };
-      }
+      throw { __MOCK__: true, data: mockResponse };
     }
     
+    console.warn(`⚠️ [MOCK] No mock data for ${path} - proceeding to backend`);
     return config;
   });
   
   api.interceptors.response.use(
     (response) => response,
     (error) => {
+      if (error.__MOCK_ERROR__) {
+        alert(error.message);
+        return Promise.reject(new Error(error.message));
+      }
       if (error.__MOCK__) {
         return Promise.resolve({ data: { success: true, data: error.data } });
       }
       if (!error.response && USE_MOCK) {
-        console.log('Backend offline - using mock data');
+        console.warn('⚠️ Backend offline and no mock data available');
+        alert('Backend is offline. Set VITE_USE_MOCK=false to use real backend, or start the backend server.');
         return { data: { success: true, data: {} }, status: 200 };
       }
       if (error.response?.status === 401) {

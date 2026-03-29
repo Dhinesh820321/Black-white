@@ -232,14 +232,17 @@ export default function Login() {
 
           <div className="mt-6 pt-6 border-t border-gray-200">
             <p className="text-center text-sm text-gray-600 font-medium mb-2">
-              Demo Credentials:
+              Demo Credentials (PHONE not email):
             </p>
-            <div className="space-y-1 text-center">
-              <p className="text-xs text-gray-500">
-                Password: <code className="bg-gray-100 px-2 py-1 rounded">9999999999</code> / <code className="bg-gray-100 px-2 py-1 rounded">admin123</code>
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 space-y-1">
+              <p className="text-xs text-yellow-800 font-medium">
+                Phone: <span className="font-mono bg-yellow-100 px-1 rounded">9999999999</span>
               </p>
-              <p className="text-xs text-gray-500">
-                OTP: Any phone / Check console for demo OTP
+              <p className="text-xs text-yellow-800 font-medium">
+                Password: <span className="font-mono bg-yellow-100 px-1 rounded">admin123</span>
+              </p>
+              <p className="text-xs text-yellow-600 mt-2">
+                ⚠️ This app uses PHONE number, not email address!
               </p>
             </div>
           </div>

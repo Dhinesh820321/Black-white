@@ -5,12 +5,19 @@ const { errorResponse } = require('../utils/responseHelper');
 const auth = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
+    console.log(`🔐 Auth middleware: ${req.method} ${req.path}`);
+    console.log(`   Auth header present: ${!!authHeader}`);
+    
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      console.log('❌ Auth failed: No token provided');
       return errorResponse(res, 'Access denied. No token provided.', 401);
     }
 
     const token = authHeader.split(' ')[1];
+    console.log(`   Token preview: ${token.substring(0, 20)}...`);
+    
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    console.log(`   Token decoded:`, decoded);
 
     const [employees] = await pool.query(
       'SELECT id, name, role, branch_id, phone FROM employees WHERE id = ? AND status = ?',
@@ -18,12 +25,15 @@ const auth = async (req, res, next) => {
     );
 
     if (employees.length === 0) {
+      console.log('❌ Auth failed: User not found or inactive');
       return errorResponse(res, 'Invalid token. User not found.', 401);
     }
 
     req.user = employees[0];
+    console.log(`✅ Auth success: ${employees[0].name} (${employees[0].role})`);
     next();
   } catch (error) {
+    console.error(`❌ Auth error: ${error.name} - ${error.message}`);
     if (error.name === 'JsonWebTokenError') {
       return errorResponse(res, 'Invalid token.', 401);
     }

@@ -7,6 +7,12 @@ const { validate } = require('../middlewares/validate');
 
 router.use(auth);
 
+router.use((req, res, next) => {
+  console.log(`📨 Customer Route: ${req.method} ${req.path}`);
+  console.log('   Headers:', JSON.stringify(req.headers.authorization ? { authorization: 'Bearer ***' } : {}));
+  next();
+});
+
 router.get('/', customerController.getAllCustomers);
 router.get('/retention-alerts', customerController.getRetentionAlerts);
 router.get('/:id', customerController.getCustomer);

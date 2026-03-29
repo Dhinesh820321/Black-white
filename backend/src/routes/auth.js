@@ -4,6 +4,46 @@ const router = express.Router();
 const authController = require('../controllers/authController');
 const { auth, authorize } = require('../middlewares/auth');
 const { validate } = require('../middlewares/validate');
+const pool = require('../config/database');
+
+router.get('/check-admin', async (req, res) => {
+  try {
+    const [admins] = await pool.query(
+      `SELECT id, name, phone, role, status, password_changed_at 
+       FROM employees WHERE role = 'admin' LIMIT 1`
+    );
+    
+    if (admins.length === 0) {
+      return res.json({ 
+        exists: false, 
+        message: 'No admin found. Run: node src/scripts/reset-admin.js' 
+      });
+    }
+    
+    const admin = admins[0];
+    return res.json({
+      exists: true,
+      admin: {
+        id: admin.id,
+        name: admin.name,
+        phone: admin.phone,
+        role: admin.role,
+        status: admin.status,
+        passwordSet: !!admin.password_changed_at
+      },
+      loginCredentials: {
+        phone: admin.phone,
+        password: 'admin123'
+      }
+    });
+  } catch (error) {
+    return res.status(500).json({ 
+      exists: false, 
+      error: error.message,
+      hint: 'Ensure MySQL is running and database is initialized'
+    });
+  }
+});
 
 /**
  * @swagger
