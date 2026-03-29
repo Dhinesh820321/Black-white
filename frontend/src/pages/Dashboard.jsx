@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { dashboardAPI, branchesAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { cleanParams } from '../utils/cleanParams';
 import { formatCurrency, formatNumber } from '../utils/helpers';
 import {
   TrendingUp, TrendingDown, Users, CreditCard, Calendar,
@@ -53,7 +54,7 @@ export default function Dashboard() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const params = selectedBranch ? { branch_id: selectedBranch } : {};
+      const params = cleanParams({ branch_id: selectedBranch });
       const [dashRes, chartRes, branchRes] = await Promise.all([
         dashboardAPI.getDashboard(params),
         dashboardAPI.getRevenueChart(params),

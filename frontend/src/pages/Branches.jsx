@@ -38,7 +38,7 @@ export default function Branches() {
     e.preventDefault();
     try {
       if (editingBranch) {
-        await branchesAPI.update(editingBranch.id, formData);
+        await branchesAPI.update(editingBranch.id || editingBranch._id, formData);
       } else {
         await branchesAPI.create(formData);
       }
@@ -86,16 +86,14 @@ export default function Branches() {
           <h1 className="text-2xl font-bold text-gray-900">Branches</h1>
           <p className="text-gray-600">Manage your salon locations</p>
         </div>
-        {user?.role === 'admin' && (
-          <button onClick={() => { resetForm(); setShowModal(true); }} className="btn-primary flex items-center gap-2">
-            <Plus className="w-4 h-4" /> Add Branch
-          </button>
-        )}
+        <button onClick={() => { resetForm(); setShowModal(true); }} className="btn-primary flex items-center gap-2">
+          <Plus className="w-4 h-4" /> Add Branch
+        </button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {(branches || []).map((branch) => (
-          <div key={branch.id} className="card">
+          <div key={branch.id || branch._id} className="card">
             <div className="flex items-start justify-between mb-4">
               <div className="p-3 bg-primary-100 rounded-xl">
                 <Building2 className="w-6 h-6 text-primary-600" />
@@ -118,7 +116,7 @@ export default function Branches() {
                 <button onClick={() => handleEdit(branch)} className="flex-1 btn-secondary text-sm py-2">
                   <Edit className="w-4 h-4 inline mr-1" /> Edit
                 </button>
-                <button onClick={() => handleDelete(branch.id)} className="px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg">
+                <button onClick={() => handleDelete(branch.id || branch._id)} className="px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg">
                   <Trash2 className="w-4 h-4" />
                 </button>
               </div>

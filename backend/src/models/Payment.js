@@ -16,8 +16,8 @@ const PaymentModel = mongoose.model('Payment', paymentSchema);
 class Payment {
   static async findAll(filters = {}) {
     let query = {};
-    if (filters.branch_id) query.branch_id = filters.branch_id;
-    if (filters.employee_id) query.employee_id = filters.employee_id;
+    if (filters.branch_id && mongoose.Types.ObjectId.isValid(filters.branch_id)) query.branch_id = filters.branch_id;
+    if (filters.employee_id && mongoose.Types.ObjectId.isValid(filters.employee_id)) query.employee_id = filters.employee_id;
     if (filters.payment_type) query.payment_type = filters.payment_type;
     
     if (filters.date) {

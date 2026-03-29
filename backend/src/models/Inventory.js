@@ -28,7 +28,9 @@ const UsageModel = mongoose.model('InventoryUsage', usageSchema);
 class Inventory {
   static async findAll(filters = {}) {
     let query = {};
-    if (filters.branch_id) query.branch_id = filters.branch_id;
+    if (filters.branch_id && mongoose.Types.ObjectId.isValid(filters.branch_id)) {
+      query.branch_id = filters.branch_id;
+    }
     if (filters.category) query.category = filters.category;
     if (filters.low_stock) query.$expr = { $lte: ['$remaining_quantity', '$min_stock_level'] };
     if (filters.search) query.item_name = { $regex: filters.search, $options: 'i' };

@@ -16,7 +16,7 @@ const ExpenseModel = mongoose.model('Expense', expenseSchema);
 class Expense {
   static async findAll(filters = {}) {
     let query = {};
-    if (filters.branch_id) query.branch_id = filters.branch_id;
+    if (filters.branch_id && mongoose.Types.ObjectId.isValid(filters.branch_id)) query.branch_id = filters.branch_id;
     if (filters.category) query.category = filters.category;
     
     if (filters.date) {

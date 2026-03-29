@@ -63,12 +63,18 @@ const branchAccess = async (req, res, next) => {
     }
 
     if (!req.user.branch_id) {
+      console.error(`400 ERROR in branchAccess: User ${req.user.employee_id} (${req.user.role}) has no branch_id!`);
       return errorResponse(res, 'No branch assigned to this user.', 400);
     }
 
-    // Auto-inject branch_id into queries for non-admins
-    req.query.branch_id = req.user.branch_id.toString();
-    req.allowedBranch = req.user.branch_id;
+    // Auto-inject branch_id into queries for non-admins if not provided or invalid
+    if (req.user.branch_id) {
+      const bId = req.user.branch_id.toString();
+      if (!req.query.branch_id || !mongoose.Types.ObjectId.isValid(req.query.branch_id)) {
+        req.query.branch_id = bId;
+      }
+      req.allowedBranch = req.user.branch_id;
+    }
     next();
   } catch (error) {
     return errorResponse(res, `Branch access check failed: ${error.message}`, 500);

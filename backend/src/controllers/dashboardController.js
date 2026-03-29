@@ -15,7 +15,8 @@ const getDashboard = async (req, res, next) => {
     tomorrow.setDate(tomorrow.getDate() + 1);
     const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
 
-    const branchFilter = branch_id ? { branch_id: new mongoose.Types.ObjectId(branch_id) } : {};
+    const isValidBranch = branch_id && mongoose.Types.ObjectId.isValid(branch_id);
+    const branchFilter = isValidBranch ? { branch_id: new mongoose.Types.ObjectId(branch_id) } : {};
 
     const todayInvoices = await Invoice.findAll({ ...branchFilter, date: today });
     const todayRevenue = todayInvoices.reduce((sum, inv) => sum + (inv.final_amount || 0), 0);

@@ -1,5 +1,5 @@
 const Attendance = require('../models/Attendance');
-const pool = require('../config/database');
+const mongoose = require('mongoose');
 const { successResponse, errorResponse } = require('../utils/responseHelper');
 
 const getAllAttendance = async (req, res, next) => {
@@ -42,14 +42,16 @@ const checkOut = async (req, res, next) => {
     let { attendance_id, latitude, longitude } = req.body;
     
     if (!attendance_id) {
-      const [latest] = await pool.query(
-        'SELECT id FROM attendance WHERE employee_id = ? AND status = ? ORDER BY check_in_time DESC LIMIT 1',
-        [req.user.id, 'checked_in']
-      );
-      if (latest.length === 0) {
+      const AttendanceModel = mongoose.model('Attendance');
+      const latest = await AttendanceModel.findOne({ 
+        employee_id: req.user._id || req.user.id, 
+        status: 'checked_in' 
+      }).sort({ check_in_time: -1 });
+
+      if (!latest) {
         return errorResponse(res, 'No active check-in found to check out', 400);
       }
-      attendance_id = latest[0].id;
+      attendance_id = latest._id;
     }
 
     const attendance = await Attendance.checkOut(attendance_id, latitude, longitude);

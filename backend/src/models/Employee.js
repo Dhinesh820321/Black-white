@@ -22,7 +22,9 @@ const EmployeeModel = mongoose.model('Employee', employeeSchema);
 class Employee {
   static async findAll(filters = {}) {
     let query = {};
-    if (filters.branch_id) query.branch_id = filters.branch_id;
+    if (filters.branch_id && mongoose.Types.ObjectId.isValid(filters.branch_id)) {
+      query.branch_id = filters.branch_id;
+    }
     if (filters.role) query.role = filters.role;
     if (filters.status) query.status = filters.status;
     if (filters.search) {

@@ -8,6 +8,7 @@ const getAllEmployees = async (req, res, next) => {
     employees.forEach(e => e.password = undefined);
     return successResponse(res, employees);
   } catch (error) {
+    console.error("EMPLOYEES ERROR:", error);
     next(error);
   }
 };

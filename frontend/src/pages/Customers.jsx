@@ -122,7 +122,7 @@ export default function Customers() {
             </thead>
             <tbody className="divide-y divide-gray-200">
               {(filteredCustomers || []).map((customer) => (
-                <tr key={customer.id} className="hover:bg-gray-50">
+                <tr key={customer.id || customer._id} className="hover:bg-gray-50">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">

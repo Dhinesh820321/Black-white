@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { attendanceAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { cleanParams } from '../utils/cleanParams';
 import { useGeolocation } from '../hooks/useGeolocation';
 import { formatTime, getRoleColor } from '../utils/helpers';
 import { Clock, LogIn, LogOut, MapPin } from 'lucide-react';
@@ -26,7 +27,7 @@ export default function Attendance() {
     try {
       const [todayRes, summaryRes] = await Promise.all([
         attendanceAPI.getToday(),
-        attendanceAPI.getSummary({ start_date: new Date().toISOString().split('T')[0], end_date: new Date().toISOString().split('T')[0] })
+        attendanceAPI.getSummary(cleanParams({ start_date: new Date().toISOString().split('T')[0], end_date: new Date().toISOString().split('T')[0] }))
       ]);
       if (todayRes?.data?.success && Array.isArray(todayRes.data.data)) {
         setTodayAttendance(todayRes.data.data);

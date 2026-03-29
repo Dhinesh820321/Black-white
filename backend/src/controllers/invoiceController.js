@@ -3,7 +3,19 @@ const { successResponse, errorResponse } = require('../utils/responseHelper');
 
 const getAllInvoices = async (req, res, next) => {
   try {
-    const { branch_id, customer_id, employee_id, payment_type, date, start_date, end_date, month, year } = req.query;
+    let { branch_id, customer_id, employee_id, payment_type, date, start_date, end_date, month, year } = req.query;
+    
+    // Normalize empty strings to null to prevent DB errors
+    branch_id = branch_id || null;
+    customer_id = customer_id || null;
+    employee_id = employee_id || null;
+    payment_type = payment_type || null;
+    date = date || null;
+    start_date = start_date || null;
+    end_date = end_date || null;
+    month = month || null;
+    year = year || null;
+
     const invoices = await Invoice.findAll({ branch_id, customer_id, employee_id, payment_type, date, start_date, end_date, month, year });
     return successResponse(res, invoices);
   } catch (error) {

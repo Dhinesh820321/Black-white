@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { paymentsAPI, branchesAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { cleanParams } from '../utils/cleanParams';
 import { formatCurrency, formatDateTime, getPaymentTypeColor } from '../utils/helpers';
 import { CreditCard, TrendingUp, Calendar } from 'lucide-react';
 
@@ -20,7 +21,7 @@ export default function Payments() {
 
   const loadData = async () => {
     try {
-      const params = { ...filters };
+      const params = cleanParams({ ...filters });
       const [payRes, branchRes, totalRes] = await Promise.all([
         paymentsAPI.getAll(params),
         branchesAPI.getAll(),

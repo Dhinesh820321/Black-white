@@ -81,7 +81,7 @@ export default function Services() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {(services || []).map((service) => (
-          <div key={service.id} className="card">
+          <div key={service.id || service._id} className="card">
             <div className="flex items-start justify-between mb-3">
               <div className="p-2 bg-primary-100 rounded-lg">
                 <Scissors className="w-5 h-5 text-primary-600" />
