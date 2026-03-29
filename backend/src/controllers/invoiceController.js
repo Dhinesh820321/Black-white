@@ -51,10 +51,44 @@ const getInvoice = async (req, res, next) => {
 
 const createInvoice = async (req, res, next) => {
   try {
-    const { branch_id, customer_id, employee_id, items, total_amount, tax_amount, discount, final_amount, payment_type, notes } = req.body;
-    const invoice = await Invoice.create({ branch_id, customer_id, employee_id, items, total_amount, tax_amount, discount, final_amount, payment_type, notes });
+    const { customer_id, items, total_amount, tax_amount, discount, final_amount, payment_type, notes } = req.body;
+    
+    const employeeId = req.user._id || req.user.id;
+    let branchId = req.user.branch_id;
+    
+    if (typeof branchId === 'object' && branchId !== null) {
+      branchId = branchId._id || branchId.id;
+    }
+
+    console.log('📋 CREATE INVOICE:', { 
+      user: req.user?.name, 
+      employeeId, 
+      branchId,
+      customer_id,
+      itemCount: items?.length 
+    });
+
+    if (!branchId) {
+      return errorResponse(res, 'Branch ID missing. Please contact admin.', 400);
+    }
+
+    const invoice = await Invoice.create({ 
+      branch_id: branchId, 
+      customer_id, 
+      employee_id: employeeId, 
+      items, 
+      total_amount, 
+      tax_amount, 
+      discount, 
+      final_amount, 
+      payment_type, 
+      notes 
+    });
+    
+    console.log('✅ INVOICE CREATED:', invoice.invoice_number);
     return successResponse(res, invoice, 'Invoice created successfully', 201);
   } catch (error) {
+    console.error('❌ CREATE INVOICE ERROR:', error.message);
     next(error);
   }
 };

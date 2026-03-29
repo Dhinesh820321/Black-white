@@ -26,22 +26,26 @@ const getAllAttendance = async (req, res, next) => {
 
 const checkIn = async (req, res, next) => {
   try {
-    const { latitude, longitude } = req.body;
-    const employeeId = req.user.id;
+    const { latitude, longitude, branch_id } = req.body;
+    console.log('📋 CHECK-IN:', { user: req.user?._id, branch_id, latitude, longitude });
+    
+    const employeeId = req.user._id || req.user.id;
     const branchId = req.user.branch_id;
 
     if (!branchId && req.user.role !== 'admin') {
       return errorResponse(res, 'No branch assigned', 400);
     }
 
-    const branchToUse = branchId || req.body.branch_id;
+    const branchToUse = branchId || branch_id;
     if (!branchToUse) {
       return errorResponse(res, 'Branch ID required', 400);
     }
 
     const attendance = await Attendance.checkIn(employeeId, branchToUse, latitude, longitude);
+    console.log('✅ CHECK-IN SUCCESS:', attendance);
     return successResponse(res, attendance, 'Checked in successfully');
   } catch (error) {
+    console.error('❌ CHECK-IN ERROR:', error.message);
     if (error.message === 'Already checked in today') {
       return errorResponse(res, error.message, 400);
     }
@@ -75,7 +79,10 @@ const checkOut = async (req, res, next) => {
 
 const getTodayAttendance = async (req, res, next) => {
   try {
-    const branchId = req.user.role === 'admin' ? req.query.branch_id : req.user.branch_id;
+    let branchId = req.user.role === 'admin' ? req.query.branch_id : req.user.branch_id;
+    if (!branchId) {
+      return successResponse(res, []);
+    }
     const attendance = await Attendance.getTodayAttendance(branchId);
     return successResponse(res, attendance);
   } catch (error) {

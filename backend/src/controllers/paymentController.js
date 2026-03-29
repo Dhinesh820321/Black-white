@@ -24,10 +24,36 @@ const getAllPayments = async (req, res, next) => {
 
 const createPayment = async (req, res, next) => {
   try {
-    const { branch_id, employee_id, invoice_id, amount, payment_type, notes } = req.body;
-    const payment = await Payment.create({ branch_id, employee_id, invoice_id, amount, payment_type, notes });
+    const { invoice_id, amount, payment_type, notes } = req.body;
+    
+    const employeeId = req.user._id || req.user.id;
+    const branchId = req.user.branch_id;
+
+    console.log('📋 CREATE PAYMENT:', { 
+      user: req.user?.name, 
+      employeeId, 
+      branchId,
+      amount,
+      payment_type
+    });
+
+    if (!branchId) {
+      return errorResponse(res, 'Branch ID missing. Please contact admin.', 400);
+    }
+
+    const payment = await Payment.create({ 
+      branch_id: branchId, 
+      employee_id: employeeId, 
+      invoice_id, 
+      amount, 
+      payment_type, 
+      notes 
+    });
+    
+    console.log('✅ PAYMENT CREATED:', payment._id);
     return successResponse(res, payment, 'Payment recorded successfully', 201);
   } catch (error) {
+    console.error('❌ CREATE PAYMENT ERROR:', error.message);
     next(error);
   }
 };

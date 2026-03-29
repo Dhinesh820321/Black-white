@@ -43,8 +43,11 @@ class Attendance {
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
+    const empId = typeof employeeId === 'string' ? new mongoose.Types.ObjectId(employeeId) : employeeId;
+    const brId = typeof branchId === 'string' ? new mongoose.Types.ObjectId(branchId) : branchId;
+
     const existing = await AttendanceModel.findOne({
-      employee_id: employeeId,
+      employee_id: empId,
       check_in_time: { $gte: today, $lt: tomorrow },
       status: 'checked_in'
     });
@@ -54,8 +57,8 @@ class Attendance {
     }
 
     const attendance = new AttendanceModel({
-      employee_id: employeeId,
-      branch_id: branchId,
+      employee_id: empId,
+      branch_id: brId,
       check_in_time: new Date(),
       check_in_lat: lat,
       check_in_lng: lng,
@@ -63,7 +66,7 @@ class Attendance {
     });
 
     await attendance.save();
-    return { id: attendance._id, employee_id: employeeId, status: 'checked_in' };
+    return { id: attendance._id, employee_id: empId, status: 'checked_in' };
   }
 
   static async checkOut(attendanceId, lat, lng) {

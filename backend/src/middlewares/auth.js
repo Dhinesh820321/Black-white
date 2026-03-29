@@ -27,8 +27,11 @@ const auth = async (req, res, next) => {
       return errorResponse(res, 'Invalid token. User not found or inactive.', 401);
     }
 
+    if (user.branch_id && typeof user.branch_id === 'object') {
+      user.branch_id = user.branch_id._id || user.branch_id.id;
+    }
     req.user = user;
-    console.log(`✅ Auth success: ${user.name} (${user.role})`);
+    console.log(`✅ Auth success: ${user.name} (${user.role}) - branch: ${user.branch_id}`);
     next();
   } catch (error) {
     console.error(`❌ Auth error: ${error.name} - ${error.message}`);
