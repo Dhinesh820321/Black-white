@@ -65,9 +65,12 @@ export function FirstLoginModal() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="label">Temporary Password</label>
+            <label htmlFor="currentPassword" className="label">Temporary Password</label>
             <input
+              id="currentPassword"
+              name="currentPassword"
               type={showPasswords ? 'text' : 'password'}
+              autoComplete="current-password"
               value={currentPassword}
               onChange={(e) => setCurrentPassword(e.target.value)}
               className="input"
@@ -77,10 +80,13 @@ export function FirstLoginModal() {
           </div>
 
           <div>
-            <label className="label">New Password</label>
+            <label htmlFor="newPassword" className="label">New Password</label>
             <div className="relative">
               <input
+                id="newPassword"
+                name="newPassword"
                 type={showPasswords ? 'text' : 'password'}
+                autoComplete="new-password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 className="input pr-10"
@@ -98,9 +104,12 @@ export function FirstLoginModal() {
           </div>
 
           <div>
-            <label className="label">Confirm New Password</label>
+            <label htmlFor="confirmPassword" className="label">Confirm New Password</label>
             <input
+              id="confirmPassword"
+              name="confirmPassword"
               type={showPasswords ? 'text' : 'password'}
+              autoComplete="new-password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               className="input"

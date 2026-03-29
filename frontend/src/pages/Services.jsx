@@ -116,32 +116,32 @@ export default function Services() {
             <h2 className="text-xl font-semibold mb-4">{editingService ? 'Edit' : 'Add'} Service</h2>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="label">Service Name</label>
-                <input type="text" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} className="input" required />
+                <label htmlFor="serviceName" className="label">Service Name</label>
+                <input id="serviceName" name="name" type="text" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} className="input" required />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="label">Price (₹)</label>
-                  <input type="number" value={formData.price} onChange={(e) => setFormData({...formData, price: e.target.value})} className="input" required />
+                  <label htmlFor="servicePrice" className="label">Price (₹)</label>
+                  <input id="servicePrice" name="price" type="number" value={formData.price} onChange={(e) => setFormData({...formData, price: e.target.value})} className="input" required />
                 </div>
                 <div>
-                  <label className="label">Duration (min)</label>
-                  <input type="number" value={formData.duration_minutes} onChange={(e) => setFormData({...formData, duration_minutes: e.target.value})} className="input" />
+                  <label htmlFor="serviceDuration" className="label">Duration (min)</label>
+                  <input id="serviceDuration" name="duration_minutes" type="number" value={formData.duration_minutes} onChange={(e) => setFormData({...formData, duration_minutes: e.target.value})} className="input" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="label">GST %</label>
-                  <input type="number" value={formData.gst_percentage} onChange={(e) => setFormData({...formData, gst_percentage: e.target.value})} className="input" />
+                  <label htmlFor="serviceGst" className="label">GST %</label>
+                  <input id="serviceGst" name="gst_percentage" type="number" value={formData.gst_percentage} onChange={(e) => setFormData({...formData, gst_percentage: e.target.value})} className="input" />
                 </div>
                 <div>
-                  <label className="label">Commission %</label>
-                  <input type="number" value={formData.commission_percentage} onChange={(e) => setFormData({...formData, commission_percentage: e.target.value})} className="input" />
+                  <label htmlFor="serviceCommission" className="label">Commission %</label>
+                  <input id="serviceCommission" name="commission_percentage" type="number" value={formData.commission_percentage} onChange={(e) => setFormData({...formData, commission_percentage: e.target.value})} className="input" />
                 </div>
               </div>
               <div>
-                <label className="label">Status</label>
-                <select value={formData.status} onChange={(e) => setFormData({...formData, status: e.target.value})} className="input">
+                <label htmlFor="serviceStatus" className="label">Status</label>
+                <select id="serviceStatus" name="status" value={formData.status} onChange={(e) => setFormData({...formData, status: e.target.value})} className="input">
                   <option value="active">Active</option>
                   <option value="inactive">Inactive</option>
                 </select>

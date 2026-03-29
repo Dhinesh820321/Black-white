@@ -157,20 +157,20 @@ export default function Inventory() {
             <h2 className="text-xl font-semibold mb-4">{editingItem ? 'Edit' : 'Add'} Item</h2>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="label">Branch</label>
-                <select value={formData.branch_id} onChange={(e) => setFormData({...formData, branch_id: e.target.value})} className="input" required>
+                <label htmlFor="invBranch" className="label">Branch</label>
+                <select id="invBranch" name="branch_id" value={formData.branch_id} onChange={(e) => setFormData({...formData, branch_id: e.target.value})} className="input" required>
                   <option value="">Select Branch</option>
                   {(branches || []).map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                 </select>
               </div>
               <div>
-                <label className="label">Item Name</label>
-                <input type="text" value={formData.item_name} onChange={(e) => setFormData({...formData, item_name: e.target.value})} className="input" required />
+                <label htmlFor="invItemName" className="label">Item Name</label>
+                <input id="invItemName" name="item_name" type="text" value={formData.item_name} onChange={(e) => setFormData({...formData, item_name: e.target.value})} className="input" required />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="label">Category</label>
-                  <select value={formData.category} onChange={(e) => setFormData({...formData, category: e.target.value})} className="input">
+                  <label htmlFor="invCategory" className="label">Category</label>
+                  <select id="invCategory" name="category" value={formData.category} onChange={(e) => setFormData({...formData, category: e.target.value})} className="input">
                     <option value="misc">Misc</option>
                     <option value="products">Products</option>
                     <option value="supplies">Supplies</option>
@@ -178,22 +178,22 @@ export default function Inventory() {
                   </select>
                 </div>
                 <div>
-                  <label className="label">Unit</label>
-                  <input type="text" value={formData.unit} onChange={(e) => setFormData({...formData, unit: e.target.value})} className="input" />
+                  <label htmlFor="invUnit" className="label">Unit</label>
+                  <input id="invUnit" name="unit" type="text" value={formData.unit} onChange={(e) => setFormData({...formData, unit: e.target.value})} className="input" />
                 </div>
               </div>
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <label className="label">Quantity</label>
-                  <input type="number" value={formData.total_quantity} onChange={(e) => setFormData({...formData, total_quantity: e.target.value})} className="input" required />
+                  <label htmlFor="invQuantity" className="label">Quantity</label>
+                  <input id="invQuantity" name="total_quantity" type="number" value={formData.total_quantity} onChange={(e) => setFormData({...formData, total_quantity: e.target.value})} className="input" required />
                 </div>
                 <div>
-                  <label className="label">Min Level</label>
-                  <input type="number" value={formData.min_stock_level} onChange={(e) => setFormData({...formData, min_stock_level: e.target.value})} className="input" />
+                  <label htmlFor="invMinLevel" className="label">Min Level</label>
+                  <input id="invMinLevel" name="min_stock_level" type="number" value={formData.min_stock_level} onChange={(e) => setFormData({...formData, min_stock_level: e.target.value})} className="input" />
                 </div>
                 <div>
-                  <label className="label">Cost/Unit</label>
-                  <input type="number" value={formData.cost_per_unit} onChange={(e) => setFormData({...formData, cost_per_unit: e.target.value})} className="input" />
+                  <label htmlFor="invCost" className="label">Cost/Unit</label>
+                  <input id="invCost" name="cost_per_unit" type="number" value={formData.cost_per_unit} onChange={(e) => setFormData({...formData, cost_per_unit: e.target.value})} className="input" />
                 </div>
               </div>
               <div className="flex gap-3 pt-4">

@@ -99,7 +99,10 @@ export default function Customers() {
       <div className="card">
         <div className="relative mb-4">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+          <label htmlFor="customerSearch" className="sr-only">Search Customers</label>
           <input
+            id="customerSearch"
+            name="search"
             type="text"
             placeholder="Search by name or phone..."
             value={searchTerm}
@@ -162,20 +165,20 @@ export default function Customers() {
             <h2 className="text-xl font-semibold mb-4">{editingCustomer ? 'Edit' : 'Add'} Customer</h2>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="label">Name</label>
-                <input type="text" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} className="input" required />
+                <label htmlFor="customerName" className="label">Name</label>
+                <input id="customerName" name="name" type="text" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} className="input" required />
               </div>
               <div>
-                <label className="label">Phone</label>
-                <input type="tel" value={formData.phone} onChange={(e) => setFormData({...formData, phone: e.target.value})} className="input" required disabled={!!editingCustomer} />
+                <label htmlFor="customerPhone" className="label">Phone</label>
+                <input id="customerPhone" name="phone" type="tel" value={formData.phone} onChange={(e) => setFormData({...formData, phone: e.target.value})} className="input" required disabled={!!editingCustomer} />
               </div>
               <div>
-                <label className="label">Email</label>
-                <input type="email" value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} className="input" />
+                <label htmlFor="customerEmail" className="label">Email</label>
+                <input id="customerEmail" name="email" type="email" value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} className="input" />
               </div>
               <div>
-                <label className="label">Notes</label>
-                <textarea value={formData.notes} onChange={(e) => setFormData({...formData, notes: e.target.value})} className="input" rows="3"></textarea>
+                <label htmlFor="customerNotes" className="label">Notes</label>
+                <textarea id="customerNotes" name="notes" value={formData.notes} onChange={(e) => setFormData({...formData, notes: e.target.value})} className="input" rows="3"></textarea>
               </div>
               <div className="flex gap-3 pt-4">
                 <button type="button" onClick={() => setShowModal(false)} className="flex-1 btn-secondary">Cancel</button>

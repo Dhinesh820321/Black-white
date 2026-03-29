@@ -99,12 +99,18 @@ export default function Expenses() {
 
       <div className="card">
         <div className="flex flex-col sm:flex-row gap-4 mb-4">
-          <input type="date" value={filters.date} onChange={(e) => setFilters({...filters, date: e.target.value})} className="input w-auto" />
+          <div className="flex flex-col gap-1">
+            <label htmlFor="filterDate" className="text-xs font-medium text-gray-500">Filter Date</label>
+            <input id="filterDate" name="date" type="date" value={filters.date} onChange={(e) => setFilters({...filters, date: e.target.value})} className="input w-auto" />
+          </div>
           {user?.role === 'admin' && (
-            <select value={filters.branch_id} onChange={(e) => setFilters({...filters, branch_id: e.target.value})} className="input w-auto">
-              <option value="">All Branches</option>
-              {(branches || []).map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-            </select>
+            <div className="flex flex-col gap-1">
+              <label htmlFor="filterBranch" className="text-xs font-medium text-gray-500">Filter Branch</label>
+              <select id="filterBranch" name="branch_id" value={filters.branch_id} onChange={(e) => setFilters({...filters, branch_id: e.target.value})} className="input w-auto">
+                <option value="">All Branches</option>
+                {(branches || []).map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+              </select>
+            </div>
           )}
         </div>
 
@@ -159,24 +165,24 @@ export default function Expenses() {
             <h2 className="text-xl font-semibold mb-4">{editingExpense ? 'Edit' : 'Add'} Expense</h2>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="label">Branch</label>
-                <select value={formData.branch_id} onChange={(e) => setFormData({...formData, branch_id: e.target.value})} className="input" required>
+                <label htmlFor="expBranch" className="label">Branch</label>
+                <select id="expBranch" name="branch_id" value={formData.branch_id} onChange={(e) => setFormData({...formData, branch_id: e.target.value})} className="input" required>
                   <option value="">Select Branch</option>
                   {(branches || []).map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                 </select>
               </div>
               <div>
-                <label className="label">Title</label>
-                <input type="text" value={formData.title} onChange={(e) => setFormData({...formData, title: e.target.value})} className="input" required />
+                <label htmlFor="expTitle" className="label">Title</label>
+                <input id="expTitle" name="title" type="text" value={formData.title} onChange={(e) => setFormData({...formData, title: e.target.value})} className="input" required />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="label">Amount</label>
-                  <input type="number" value={formData.amount} onChange={(e) => setFormData({...formData, amount: e.target.value})} className="input" required />
+                  <label htmlFor="expAmount" className="label">Amount</label>
+                  <input id="expAmount" name="amount" type="number" value={formData.amount} onChange={(e) => setFormData({...formData, amount: e.target.value})} className="input" required />
                 </div>
                 <div>
-                  <label className="label">Category</label>
-                  <select value={formData.category} onChange={(e) => setFormData({...formData, category: e.target.value})} className="input">
+                  <label htmlFor="expCategory" className="label">Category</label>
+                  <select id="expCategory" name="category" value={formData.category} onChange={(e) => setFormData({...formData, category: e.target.value})} className="input">
                     <option value="rent">Rent</option>
                     <option value="salary">Salary</option>
                     <option value="electricity">Electricity</option>

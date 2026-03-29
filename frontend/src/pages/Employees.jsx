@@ -158,13 +158,13 @@ export default function Employees() {
             <h2 className="text-xl font-semibold mb-4">{editingEmployee ? 'Edit' : 'Add'} Employee</h2>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="label">Name</label>
-                <input type="text" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} className="input" required />
+                <label htmlFor="empName" className="label">Name</label>
+                <input id="empName" name="name" type="text" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} className="input" required />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="label">Role</label>
-                  <select value={formData.role} onChange={(e) => setFormData({...formData, role: e.target.value})} className="input">
+                  <label htmlFor="empRole" className="label">Role</label>
+                  <select id="empRole" name="role" value={formData.role} onChange={(e) => setFormData({...formData, role: e.target.value})} className="input">
                     <option value="admin">Admin</option>
                     <option value="manager">Manager</option>
                     <option value="stylist">Stylist</option>
@@ -172,30 +172,30 @@ export default function Employees() {
                   </select>
                 </div>
                 <div>
-                  <label className="label">Phone</label>
-                  <input type="tel" value={formData.phone} onChange={(e) => setFormData({...formData, phone: e.target.value})} className="input" required />
+                  <label htmlFor="empPhone" className="label">Phone</label>
+                  <input id="empPhone" name="phone" type="tel" value={formData.phone} onChange={(e) => setFormData({...formData, phone: e.target.value})} className="input" required />
                 </div>
               </div>
               <div>
-                <label className="label">Password {editingEmployee && '(leave blank to keep current)'}</label>
-                <input type="password" value={formData.password} onChange={(e) => setFormData({...formData, password: e.target.value})} className="input" {...(!editingEmployee && { required: true })} />
+                <label htmlFor="empPassword" className="label">Password {editingEmployee && '(leave blank to keep current)'}</label>
+                <input id="empPassword" name="password" type="password" value={formData.password} onChange={(e) => setFormData({...formData, password: e.target.value})} className="input" {...(!editingEmployee && { required: true })} />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="label">Branch</label>
-                  <select value={formData.branch_id} onChange={(e) => setFormData({...formData, branch_id: e.target.value})} className="input">
+                  <label htmlFor="empBranch" className="label">Branch</label>
+                  <select id="empBranch" name="branch_id" value={formData.branch_id} onChange={(e) => setFormData({...formData, branch_id: e.target.value})} className="input">
                     <option value="">Select Branch</option>
                     {(branches || []).map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="label">Salary</label>
-                  <input type="number" value={formData.salary} onChange={(e) => setFormData({...formData, salary: e.target.value})} className="input" />
+                  <label htmlFor="empSalary" className="label">Salary</label>
+                  <input id="empSalary" name="salary" type="number" value={formData.salary} onChange={(e) => setFormData({...formData, salary: e.target.value})} className="input" />
                 </div>
               </div>
               <div>
-                <label className="label">Status</label>
-                <select value={formData.status} onChange={(e) => setFormData({...formData, status: e.target.value})} className="input">
+                <label htmlFor="empStatus" className="label">Status</label>
+                <select id="empStatus" name="status" value={formData.status} onChange={(e) => setFormData({...formData, status: e.target.value})} className="input">
                   <option value="active">Active</option>
                   <option value="inactive">Inactive</option>
                 </select>

@@ -110,14 +110,18 @@ export default function Invoices() {
       <div className="card">
         <div className="flex flex-col sm:flex-row gap-4 mb-4">
           <div className="relative flex-1">
+            <label htmlFor="invoiceDate" className="sr-only">Filter by Date</label>
             <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-            <input type="date" value={filters.date} onChange={(e) => setFilters({...filters, date: e.target.value})} className="input pl-10" />
+            <input id="invoiceDate" name="date" type="date" value={filters.date} onChange={(e) => setFilters({...filters, date: e.target.value})} className="input pl-10" />
           </div>
           {user?.role === 'admin' && (
-            <select value={filters.branch_id} onChange={(e) => setFilters({...filters, branch_id: e.target.value})} className="input w-auto">
-              <option value="">All Branches</option>
-              {(branches || []).map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-            </select>
+            <div className="flex flex-col gap-1">
+              <label htmlFor="invoiceBranchFilter" className="sr-only">Filter by Branch</label>
+              <select id="invoiceBranchFilter" name="branch_id" value={filters.branch_id} onChange={(e) => setFilters({...filters, branch_id: e.target.value})} className="input w-auto">
+                <option value="">All Branches</option>
+                {(branches || []).map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+              </select>
+            </div>
           )}
         </div>
 
@@ -162,15 +166,15 @@ export default function Invoices() {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="label">Branch</label>
-                  <select value={formData.branch_id} onChange={(e) => setFormData({...formData, branch_id: e.target.value})} className="input" required>
+                  <label htmlFor="invBranchId" className="label">Branch</label>
+                  <select id="invBranchId" name="branch_id" value={formData.branch_id} onChange={(e) => setFormData({...formData, branch_id: e.target.value})} className="input" required>
                     <option value="">Select Branch</option>
                     {(branches || []).map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="label">Customer</label>
-                  <select value={formData.customer_id} onChange={(e) => setFormData({...formData, customer_id: e.target.value})} className="input">
+                  <label htmlFor="invCustomer" className="label">Customer</label>
+                  <select id="invCustomer" name="customer_id" value={formData.customer_id} onChange={(e) => setFormData({...formData, customer_id: e.target.value})} className="input">
                     <option value="">Walk-in Customer</option>
                     {(customers || []).map(c => <option key={c.id} value={c.id}>{c.name} - {c.phone}</option>)}
                   </select>
@@ -203,8 +207,8 @@ export default function Invoices() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="label">Payment Type</label>
-                  <select value={formData.payment_type} onChange={(e) => setFormData({...formData, payment_type: e.target.value})} className="input">
+                  <label htmlFor="invPaymentType" className="label">Payment Type</label>
+                  <select id="invPaymentType" name="payment_type" value={formData.payment_type} onChange={(e) => setFormData({...formData, payment_type: e.target.value})} className="input">
                     <option value="CASH">Cash</option>
                     <option value="UPI">UPI</option>
                     <option value="CARD">Card</option>
@@ -213,8 +217,8 @@ export default function Invoices() {
               </div>
 
               <div>
-                <label className="label">Notes</label>
-                <textarea value={formData.notes} onChange={(e) => setFormData({...formData, notes: e.target.value})} className="input" rows="2"></textarea>
+                <label htmlFor="invNotes" className="label">Notes</label>
+                <textarea id="invNotes" name="notes" value={formData.notes} onChange={(e) => setFormData({...formData, notes: e.target.value})} className="input" rows="2"></textarea>
               </div>
 
               <div className="flex gap-3 pt-4">

@@ -99,22 +99,31 @@ export default function Payments() {
 
       <div className="card">
         <div className="flex flex-col sm:flex-row gap-4 mb-4">
+        <div className="flex flex-col sm:flex-row gap-4 mb-4">
           <div className="relative">
+            <label htmlFor="paymentDate" className="sr-only">Filter by Date</label>
             <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-            <input type="date" value={filters.date} onChange={(e) => setFilters({...filters, date: e.target.value})} className="input pl-10" />
+            <input id="paymentDate" name="date" type="date" value={filters.date} onChange={(e) => setFilters({...filters, date: e.target.value})} className="input pl-10" />
           </div>
           {user?.role === 'admin' && (
-            <select value={filters.branch_id} onChange={(e) => setFilters({...filters, branch_id: e.target.value})} className="input w-auto">
-              <option value="">All Branches</option>
-              {(branches || []).map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-            </select>
+            <div className="flex flex-col gap-1">
+              <label htmlFor="paymentBranch" className="sr-only">Filter by Branch</label>
+              <select id="paymentBranch" name="branch_id" value={filters.branch_id} onChange={(e) => setFilters({...filters, branch_id: e.target.value})} className="input w-auto">
+                <option value="">All Branches</option>
+                {(branches || []).map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+              </select>
+            </div>
           )}
-          <select value={filters.payment_type} onChange={(e) => setFilters({...filters, payment_type: e.target.value})} className="input w-auto">
-            <option value="">All Types</option>
-            <option value="UPI">UPI</option>
-            <option value="CASH">Cash</option>
-            <option value="CARD">Card</option>
-          </select>
+          <div className="flex flex-col gap-1">
+            <label htmlFor="paymentType" className="sr-only">Filter by Payment Type</label>
+            <select id="paymentType" name="payment_type" value={filters.payment_type} onChange={(e) => setFilters({...filters, payment_type: e.target.value})} className="input w-auto">
+              <option value="">All Types</option>
+              <option value="UPI">UPI</option>
+              <option value="CASH">Cash</option>
+              <option value="CARD">Card</option>
+            </select>
+          </div>
+        </div>
         </div>
 
         <div className="overflow-x-auto">

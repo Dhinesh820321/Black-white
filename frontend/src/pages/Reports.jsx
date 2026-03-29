@@ -103,23 +103,35 @@ export default function Reports() {
       <div className="card">
         <div className="flex flex-wrap gap-4 mb-6">
           {reportType === 'daily' && (
-            <input type="date" value={filters.date} onChange={(e) => setFilters({...filters, date: e.target.value})} className="input w-auto" />
+            <div className="flex flex-col gap-1">
+              <label htmlFor="reportDate" className="text-xs font-medium text-gray-500">Select Date</label>
+              <input id="reportDate" name="date" type="date" value={filters.date} onChange={(e) => setFilters({...filters, date: e.target.value})} className="input w-auto" />
+            </div>
           )}
           {reportType === 'monthly' && (
             <>
-              <select value={filters.year} onChange={(e) => setFilters({...filters, year: e.target.value})} className="input w-auto">
-                {[2024, 2025, 2026].map(y => <option key={y} value={y}>{y}</option>)}
-              </select>
-              <select value={filters.month} onChange={(e) => setFilters({...filters, month: e.target.value})} className="input w-auto">
-                {Array.from({ length: 12 }, (_, i) => i + 1).map(m => <option key={m} value={m}>{new Date(2024, m - 1).toLocaleString('en', { month: 'long' })}</option>)}
-              </select>
+              <div className="flex flex-col gap-1">
+                <label htmlFor="reportYear" className="text-xs font-medium text-gray-500">Year</label>
+                <select id="reportYear" name="year" value={filters.year} onChange={(e) => setFilters({...filters, year: e.target.value})} className="input w-auto">
+                  {[2024, 2025, 2026].map(y => <option key={y} value={y}>{y}</option>)}
+                </select>
+              </div>
+              <div className="flex flex-col gap-1">
+                <label htmlFor="reportMonth" className="text-xs font-medium text-gray-500">Month</label>
+                <select id="reportMonth" name="month" value={filters.month} onChange={(e) => setFilters({...filters, month: e.target.value})} className="input w-auto">
+                  {Array.from({ length: 12 }, (_, i) => i + 1).map(m => <option key={m} value={m}>{new Date(2024, m - 1).toLocaleString('en', { month: 'long' })}</option>)}
+                </select>
+              </div>
             </>
           )}
           {user?.role === 'admin' && (
-            <select value={filters.branch_id} onChange={(e) => setFilters({...filters, branch_id: e.target.value})} className="input w-auto">
-              <option value="">All Branches</option>
-              {(branches || []).map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-            </select>
+            <div className="flex flex-col gap-1">
+              <label htmlFor="reportBranch" className="text-xs font-medium text-gray-500">Branch</label>
+              <select id="reportBranch" name="branch_id" value={filters.branch_id} onChange={(e) => setFilters({...filters, branch_id: e.target.value})} className="input w-auto">
+                <option value="">All Branches</option>
+                {(branches || []).map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+              </select>
+            </div>
           )}
         </div>
 

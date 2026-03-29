@@ -133,30 +133,30 @@ export default function Branches() {
             <h2 className="text-xl font-semibold mb-4">{editingBranch ? 'Edit' : 'Add'} Branch</h2>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="label">Name</label>
-                <input type="text" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} className="input" required />
+                <label htmlFor="branchName" className="label">Name</label>
+                <input id="branchName" name="name" type="text" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} className="input" required />
               </div>
               <div>
-                <label className="label">Location</label>
-                <input type="text" value={formData.location} onChange={(e) => setFormData({...formData, location: e.target.value})} className="input" required />
+                <label htmlFor="branchLocation" className="label">Location</label>
+                <input id="branchLocation" name="location" type="text" value={formData.location} onChange={(e) => setFormData({...formData, location: e.target.value})} className="input" required />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="label">Latitude</label>
-                  <input type="number" step="any" value={formData.geo_latitude} onChange={(e) => setFormData({...formData, geo_latitude: e.target.value})} className="input" />
+                  <label htmlFor="branchLat" className="label">Latitude</label>
+                  <input id="branchLat" name="geo_latitude" type="number" step="any" value={formData.geo_latitude} onChange={(e) => setFormData({...formData, geo_latitude: e.target.value})} className="input" />
                 </div>
                 <div>
-                  <label className="label">Longitude</label>
-                  <input type="number" step="any" value={formData.geo_longitude} onChange={(e) => setFormData({...formData, geo_longitude: e.target.value})} className="input" />
+                  <label htmlFor="branchLng" className="label">Longitude</label>
+                  <input id="branchLng" name="geo_longitude" type="number" step="any" value={formData.geo_longitude} onChange={(e) => setFormData({...formData, geo_longitude: e.target.value})} className="input" />
                 </div>
               </div>
               <div>
-                <label className="label">Geo-fence Radius (meters)</label>
-                <input type="number" value={formData.geo_radius} onChange={(e) => setFormData({...formData, geo_radius: e.target.value})} className="input" />
+                <label htmlFor="branchRadius" className="label">Geo-fence Radius (meters)</label>
+                <input id="branchRadius" name="geo_radius" type="number" value={formData.geo_radius} onChange={(e) => setFormData({...formData, geo_radius: e.target.value})} className="input" />
               </div>
               <div>
-                <label className="label">Status</label>
-                <select value={formData.status} onChange={(e) => setFormData({...formData, status: e.target.value})} className="input">
+                <label htmlFor="branchStatus" className="label">Status</label>
+                <select id="branchStatus" name="status" value={formData.status} onChange={(e) => setFormData({...formData, status: e.target.value})} className="input">
                   <option value="active">Active</option>
                   <option value="inactive">Inactive</option>
                 </select>

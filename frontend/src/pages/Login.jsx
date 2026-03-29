@@ -114,9 +114,12 @@ export default function Login() {
           {loginMethod === 'password' ? (
             <form onSubmit={handlePasswordLogin} className="space-y-4">
               <div>
-                <label className="label">Phone Number</label>
+                <label htmlFor="phone" className="label">Phone Number</label>
                 <input
+                  id="phone"
+                  name="phone"
                   type="tel"
+                  autoComplete="username"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   className="input"
@@ -126,10 +129,13 @@ export default function Login() {
               </div>
 
               <div>
-                <label className="label">Password</label>
+                <label htmlFor="password" className="label">Password</label>
                 <div className="relative">
                   <input
+                    id="password"
+                    name="password"
                     type={showPassword ? 'text' : 'password'}
+                    autoComplete="current-password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="input pr-10"
@@ -168,9 +174,12 @@ export default function Login() {
           ) : (
             <form onSubmit={otpSent ? handleOTPVerify : handleRequestOTP} className="space-y-4">
               <div>
-                <label className="label">Phone Number</label>
+                <label htmlFor="otpPhone" className="label">Phone Number</label>
                 <input
+                  id="otpPhone"
+                  name="phone"
                   type="tel"
+                  autoComplete="tel"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   className="input"
@@ -182,9 +191,12 @@ export default function Login() {
 
               {otpSent && (
                 <div>
-                  <label className="label">Enter OTP</label>
+                  <label htmlFor="otp" className="label">Enter OTP</label>
                   <input
+                    id="otp"
+                    name="otp"
                     type="text"
+                    autoComplete="one-time-code"
                     value={otp}
                     onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
                     className="input text-center text-2xl tracking-widest"

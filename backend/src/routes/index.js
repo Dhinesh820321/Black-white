@@ -1,6 +1,7 @@
+const testRoutes = require('./test');
 const express = require('express');
 const router = express.Router();
-
+router.use('/', testRoutes);
 router.use('/auth', require('./auth'));
 router.use('/branches', require('./branches'));
 router.use('/employees', require('./employees'));
