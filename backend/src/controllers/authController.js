@@ -115,37 +115,24 @@ const passwordLogin = async (req, res, next) => {
   try {
     const { phone, password, device_id, latitude, longitude } = req.body;
 
-    const [employees] = await pool.query(
-      `SELECT e.*, b.geo_latitude, b.geo_longitude, b.geo_radius, b.name as branch_name 
-       FROM employees e 
-       LEFT JOIN branches b ON e.branch_id = b.id 
-       WHERE e.phone = ?`,
-      [phone]
-    );
+    const employee = await Employee.findByPhone(phone);
 
-    if (employees.length === 0) {
+    if (!employee) {
       return errorResponse(res, 'Invalid credentials', 401);
     }
-
-    const employee = employees[0];
 
     if (employee.status !== 'active') {
       return errorResponse(res, 'Account is inactive', 403);
     }
 
     const isValidPassword = await bcrypt.compare(password, employee.password);
-    if (!isValidPassword) {
-      console.log('❌ Login failed: Invalid password for', employee.name);
-      return errorResponse(res, 'Invalid password. Please check your password.', 401);
-    }
-
     // Geofencing logic (if branch has coordinates)
-    if (employee.branch_id?.geo_latitude && latitude) {
+    if (employee.geo_latitude && latitude) {
       const { isWithinRadius } = require('../utils/geofencing');
       const inRange = isWithinRadius(
         parseFloat(latitude), parseFloat(longitude),
-        employee.branch_id.geo_latitude, employee.branch_id.geo_longitude,
-        employee.branch_id.geo_radius || 100
+        employee.geo_latitude, employee.geo_longitude,
+        employee.geo_radius || 100
       );
       if (!inRange) {
         return errorResponse(res, 'Outside allowed location.', 403);

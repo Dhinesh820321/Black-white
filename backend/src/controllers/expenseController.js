@@ -25,10 +25,30 @@ const getExpense = async (req, res, next) => {
 
 const createExpense = async (req, res, next) => {
   try {
+    console.log('📥 CREATE EXPENSE - Request body:', req.body);
+    console.log('📥 CREATE EXPENSE - User:', req.user?.id, req.user?.role);
+    
     const { branch_id, title, amount, category, receipt_image } = req.body;
+    
+    // Validate required fields
+    if (!branch_id) {
+      console.error('❌ branch_id is missing or empty');
+      return errorResponse(res, 'Branch ID is required', 400);
+    }
+    if (!title) {
+      console.error('❌ title is missing or empty');
+      return errorResponse(res, 'Title is required', 400);
+    }
+    if (amount === undefined || amount === null || amount === '') {
+      console.error('❌ amount is missing or empty');
+      return errorResponse(res, 'Amount is required', 400);
+    }
+    
     const expense = await Expense.create({ branch_id, title, amount, category, receipt_image, created_by: req.user.id });
+    console.log('✅ Expense created:', expense);
     return successResponse(res, expense, 'Expense created successfully', 201);
   } catch (error) {
+    console.error('❌ CREATE EXPENSE ERROR:', error);
     next(error);
   }
 };

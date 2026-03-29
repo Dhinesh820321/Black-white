@@ -15,7 +15,7 @@ const navigation = [
   { name: 'Attendance', href: '/attendance', icon: Calendar },
   { name: 'Customers', href: '/customers', icon: UserPlus },
   { name: 'Services', href: '/services', icon: Package },
-  { name: 'Invoices', href: '/invoices', icon: Receipt },
+  // { name: 'Invoices', href: '/invoices', icon: Receipt },
   { name: 'Payments', href: '/payments', icon: CreditCard },
   { name: 'Inventory', href: '/inventory', icon: ShoppingCart },
   { name: 'Expenses', href: '/expenses', icon: FileText },

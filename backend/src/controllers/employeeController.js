@@ -30,12 +30,7 @@ const createEmployee = async (req, res, next) => {
   try {
     console.log('📝 POST /employees - Request body:', req.body);
     const { name, role, phone, password, branch_id, salary } = req.body;
-<<<<<<< HEAD
-    const employee = await Employee.create({ name, role, phone, password, branch_id, salary });
-    console.log('✅ Employee created:', employee);
-=======
     
-    // Safety check for branch_id (convert empty string to null)
     const processedBranchId = branch_id === '' || branch_id === undefined ? null : branch_id;
     
     const employee = await Employee.create({ 
@@ -47,7 +42,7 @@ const createEmployee = async (req, res, next) => {
       salary: salary || 0 
     });
     
->>>>>>> e44e6b5089c84c50e2b323a799a64103fd242bed
+    console.log('✅ Employee created:', employee);
     return successResponse(res, employee, 'Employee created successfully', 201);
   } catch (error) {
     console.error('❌ Error creating employee:', error.message);

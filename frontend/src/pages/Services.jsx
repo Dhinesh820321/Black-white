@@ -127,38 +127,9 @@ export default function Services() {
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-<<<<<<< HEAD
         {services.length === 0 ? (
           <div className="col-span-full text-center py-12 text-gray-500">
             No services found. Click "Add Service" to create one.
-=======
-        {(services || []).map((service) => (
-          <div key={service.id || service._id} className="card">
-            <div className="flex items-start justify-between mb-3">
-              <div className="p-2 bg-primary-100 rounded-lg">
-                <Scissors className="w-5 h-5 text-primary-600" />
-              </div>
-              <span className={`px-2 py-1 text-xs font-medium rounded-full ${service.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                {service.status}
-              </span>
-            </div>
-            <h3 className="text-lg font-semibold text-gray-900">{service.name}</h3>
-            <p className="text-2xl font-bold text-primary-600 mt-2">{formatCurrency(service.price)}</p>
-            <div className="flex items-center justify-between mt-3 pt-3 border-t text-sm text-gray-500">
-              <span>{service.duration_minutes} min</span>
-              <span>GST: {service.gst_percentage}%</span>
-            </div>
-            {(user?.role === 'admin' || user?.role === 'manager') && (
-              <div className="flex gap-2 mt-4">
-                <button onClick={() => handleEdit(service)} className="flex-1 btn-secondary text-sm py-2">
-                  <Edit className="w-4 h-4 inline mr-1" /> Edit
-                </button>
-                <button onClick={() => handleDelete(service.id)} className="px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg">
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-            )}
->>>>>>> e44e6b5089c84c50e2b323a799a64103fd242bed
           </div>
         ) : (
           services.map((service) => (

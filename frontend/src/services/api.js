@@ -8,106 +8,18 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json'
   },
-<<<<<<< HEAD
-  timeout: 10000
-});
-
-api.interceptors.request.use((config) => {
-  console.log(`🔵 API Request: ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`, {
-    data: config.data,
-    params: config.params
-  });
-  return config;
-});
-
-api.interceptors.response.use(
-  (response) => {
-    console.log(`🟢 API Response: ${response.status} ${response.config.url}`, response.data);
-    return response;
-  },
-  (error) => {
-    console.error(`🔴 API Error: ${error.config?.url}`, {
-      status: error.response?.status,
-      message: error.response?.data?.message || error.message,
-      data: error.response?.data
-    });
-    return Promise.reject(error);
-  }
-);
-
-if (USE_MOCK) {
-  api.interceptors.request.use((config) => {
-    console.log(`🔵 [MOCK] Intercepted ${config.method?.toUpperCase()} ${config.url}`);
-    
-    const path = config.url.replace('/api', '');
-    
-    if (['POST', 'PUT', 'DELETE'].includes(config.method?.toUpperCase())) {
-      console.warn(`⚠️ [MOCK] ${config.method?.toUpperCase()} request - Mock mode does not support mutations. Set VITE_USE_MOCK=false to use real backend.`);
-      throw {
-        __MOCK__: true,
-        __MOCK_ERROR__: true,
-        message: `Mock mode: Cannot ${config.method} data. Disable mock mode for write operations.`
-      };
-    }
-    
-    const mockResponses = {
-      '/dashboard': mockDashboard,
-      '/branches': mockData.branches,
-      '/employees': mockData.employees,
-      '/services': mockData.services,
-      '/customers': mockData.customers,
-      '/invoices': mockData.invoices,
-      '/payments': mockData.payments,
-      '/inventory': mockData.inventory,
-      '/expenses': mockData.expenses,
-      '/attendance/today': mockData.attendance
-    };
-    
-    const mockResponse = mockResponses[path];
-    
-    if (mockResponse) {
-      throw { __MOCK__: true, data: mockResponse };
-    }
-    
-    console.warn(`⚠️ [MOCK] No mock data for ${path} - proceeding to backend`);
-    return config;
-  });
-  
-  api.interceptors.response.use(
-    (response) => response,
-    (error) => {
-      if (error.__MOCK_ERROR__) {
-        alert(error.message);
-        return Promise.reject(new Error(error.message));
-      }
-      if (error.__MOCK__) {
-        return Promise.resolve({ data: { success: true, data: error.data } });
-      }
-      if (!error.response && USE_MOCK) {
-        console.warn('⚠️ Backend offline and no mock data available');
-        alert('Backend is offline. Set VITE_USE_MOCK=false to use real backend, or start the backend server.');
-        return { data: { success: true, data: {} }, status: 200 };
-      }
-      if (error.response?.status === 401) {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        window.location.href = '/login';
-      }
-      return Promise.reject(error);
-    }
-  );
-} else {
-  api.interceptors.request.use((config) => {
-=======
   timeout: 15000
 });
 
 api.interceptors.request.use(
   (config) => {
+    console.log(`🔵 API Request: ${config.method?.toUpperCase()} ${config.url}`, {
+      data: config.data,
+      params: config.params
+    });
     if (config.params) {
       config.params = cleanParams(config.params);
     }
->>>>>>> e44e6b5089c84c50e2b323a799a64103fd242bed
     const token = localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -120,8 +32,16 @@ api.interceptors.request.use(
 );
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    console.log(`🟢 API Response: ${response.status} ${response.config.url}`, response.data);
+    return response;
+  },
   (error) => {
+    console.error(`🔴 API Error: ${error.config?.url}`, {
+      status: error.response?.status,
+      message: error.response?.data?.message || error.message,
+      data: error.response?.data
+    });
     if (error.response?.status === 401) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');

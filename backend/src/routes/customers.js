@@ -13,34 +13,6 @@ const { validate } = require('../middlewares/validate');
 
 router.use(auth);
 
-<<<<<<< HEAD
-router.use((req, res, next) => {
-  console.log(`📨 Customer Route: ${req.method} ${req.path}`);
-  console.log('   Headers:', JSON.stringify(req.headers.authorization ? { authorization: 'Bearer ***' } : {}));
-  next();
-});
-
-=======
-
-/**
- * @swagger
- * /api/customers:
- *   get:
- *     tags: [Customers]
- *     summary: GET /api/customers
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Success
- *       400:
- *         description: Bad Request
- *       401:
- *         description: Unauthorized
- *       500:
- *         description: Server Error
- */
->>>>>>> e44e6b5089c84c50e2b323a799a64103fd242bed
 router.get('/', customerController.getAllCustomers);
 
 /**

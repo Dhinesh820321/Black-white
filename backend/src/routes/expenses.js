@@ -105,7 +105,7 @@ router.get('/:id', expenseController.getExpense);
  *         description: Server Error
  */
 router.post('/', authorize('admin', 'manager'), [
-  body('branch_id').isInt().withMessage('Branch ID required'),
+  body('branch_id').notEmpty().withMessage('Branch ID required'),
   body('title').notEmpty().withMessage('Title is required'),
   body('amount').isFloat({ min: 0 }).withMessage('Valid amount required'),
   body('category').isIn(['rent', 'salary', 'electricity', 'supplies', 'misc']).withMessage('Invalid category')

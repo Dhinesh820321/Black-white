@@ -10,25 +10,7 @@ const auth = async (req, res, next) => {
     console.log(`   Auth header present: ${!!authHeader}`);
     
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-<<<<<<< HEAD
       console.log('❌ Auth failed: No token provided');
-=======
-      if (process.env.NODE_ENV === 'development') {
-        // Bypass authentication for development with dummy ObjectId
-        req.user = {
-          _id: new mongoose.Types.ObjectId(),
-          id: 'dev-admin',
-          employee_id: 'ADM001',
-          name: 'Dev Admin',
-          role: 'admin',
-          phone: '9999999999',
-          branch_id: null,
-          status: 'active'
-        };
-        console.log('👷 MDB Dev Bypass: Authenticated as Dev Admin');
-        return next();
-      }
->>>>>>> e44e6b5089c84c50e2b323a799a64103fd242bed
       return errorResponse(res, 'Access denied. No token provided.', 401);
     }
 
@@ -40,21 +22,13 @@ const auth = async (req, res, next) => {
 
     const employee = await Employee.findById(decoded.id);
 
-<<<<<<< HEAD
-    if (employees.length === 0) {
-      console.log('❌ Auth failed: User not found or inactive');
-      return errorResponse(res, 'Invalid token. User not found.', 401);
-    }
-
-    req.user = employees[0];
-    console.log(`✅ Auth success: ${employees[0].name} (${employees[0].role})`);
-=======
     if (!employee || employee.status !== 'active') {
+      console.log('❌ Auth failed: User not found or inactive');
       return errorResponse(res, 'Invalid token. User not found or inactive.', 401);
     }
 
     req.user = employee;
->>>>>>> e44e6b5089c84c50e2b323a799a64103fd242bed
+    console.log(`✅ Auth success: ${employee.name} (${employee.role})`);
     next();
   } catch (error) {
     console.error(`❌ Auth error: ${error.name} - ${error.message}`);
@@ -70,9 +44,12 @@ const auth = async (req, res, next) => {
 
 const authorize = (...roles) => {
   return (req, res, next) => {
+    console.log(`🔑 AUTHORIZE: User role: "${req.user?.role}", Required roles: [${roles.join(', ')}]`);
     if (!roles.includes(req.user.role)) {
+      console.log(`❌ AUTHORIZE FAILED: User role "${req.user.role}" not in allowed roles`);
       return errorResponse(res, 'Access denied. Insufficient permissions.', 403);
     }
+    console.log(`✅ AUTHORIZE SUCCESS`);
     next();
   };
 };
