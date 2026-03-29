@@ -62,40 +62,44 @@ class Invoice {
 
   static async create(data) {
     const invoiceNumber = `INV-${Date.now()}-${uuidv4().slice(0, 4).toUpperCase()}`;
-    const session = await mongoose.startSession();
-    session.startTransaction();
     
     try {
-      const invoice = new InvoiceModel({ ...data, invoice_number: invoiceNumber });
-      await invoice.save({ session });
+      const processedItems = (data.items || []).map(item => ({
+        ...item,
+        subtotal: item.subtotal || (item.price * (item.quantity || 1))
+      }));
 
-      // Update customer loyalty points and last visit if applicable
+      const finalAmount = data.final_amount || data.total_amount || 0;
+
+      const invoice = new InvoiceModel({ 
+        ...data, 
+        items: processedItems,
+        final_amount: finalAmount,
+        invoice_number: invoiceNumber 
+      });
+      await invoice.save();
+
       if (data.customer_id) {
         const CustomerModel = mongoose.model('Customer');
         await CustomerModel.findByIdAndUpdate(data.customer_id, {
           $set: { last_visit: new Date() },
-          $inc: { loyalty_points: Math.floor(data.final_amount / 100) }
-        }, { session });
+          $inc: { loyalty_points: Math.floor(finalAmount / 100) }
+        });
       }
 
-      // Record payment
       const PaymentModel = mongoose.model('Payment');
       const payment = new PaymentModel({
         branch_id: data.branch_id,
         employee_id: data.employee_id,
         invoice_id: invoice._id,
-        amount: data.final_amount,
+        amount: finalAmount,
         payment_type: data.payment_type
       });
-      await payment.save({ session });
+      await payment.save();
 
-      await session.commitTransaction();
       return this.findById(invoice._id);
     } catch (error) {
-      await session.abortTransaction();
       throw error;
-    } finally {
-      session.endSession();
     }
   }
 

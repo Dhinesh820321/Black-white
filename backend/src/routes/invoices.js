@@ -125,8 +125,6 @@ router.get('/:id', invoiceController.getInvoice);
  *         description: Server Error
  */
 router.post('/', [
-  body('branch_id').isInt().withMessage('Branch ID required'),
-  body('employee_id').isInt().withMessage('Employee ID required'),
   body('items').isArray({ min: 1 }).withMessage('At least one item required'),
   body('payment_type').isIn(['UPI', 'CASH', 'CARD']).withMessage('Invalid payment type')
 ], validate, invoiceController.createInvoice);

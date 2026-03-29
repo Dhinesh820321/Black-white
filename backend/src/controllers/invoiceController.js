@@ -72,15 +72,19 @@ const createInvoice = async (req, res, next) => {
       return errorResponse(res, 'Branch ID missing. Please contact admin.', 400);
     }
 
+    if (!items || items.length === 0) {
+      return errorResponse(res, 'At least one service item is required', 400);
+    }
+
     const invoice = await Invoice.create({ 
       branch_id: branchId, 
-      customer_id, 
+      customer_id: customer_id || null, 
       employee_id: employeeId, 
       items, 
-      total_amount, 
-      tax_amount, 
-      discount, 
-      final_amount, 
+      total_amount: total_amount || final_amount || 0, 
+      tax_amount: tax_amount || 0, 
+      discount: discount || 0, 
+      final_amount: final_amount || total_amount || 0, 
       payment_type, 
       notes 
     });
