@@ -53,8 +53,8 @@ export const authAPI = {
 };
 
 export const attendanceAPI = {
-  checkIn: (data) => api.post('/attendance/check-in', data),
-  checkOut: (data) => api.post('/attendance/check-out', data),
+  checkIn: () => api.post('/attendance/check-in'),
+  checkOut: () => api.post('/attendance/check-out'),
   getToday: () => api.get('/attendance/today'),
 };
 

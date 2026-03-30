@@ -7,12 +7,14 @@ const getAllEmployees = async (req, res, next) => {
     let employees = await User.findAll({ branch_id, role: 'employee', status, search });
     employees = employees.map(e => {
       e.password = undefined;
+      e.salary = e.salary ?? 0;
       if (e.branch_id && typeof e.branch_id === 'object') {
         e.branch_name = e.branch_id.name;
         e.branch_id = e.branch_id._id || e.branch_id.id;
       }
       return e;
     });
+    console.log('Employees API response:', employees.map(e => ({ name: e.name, salary: e.salary })));
     return successResponse(res, employees);
   } catch (error) {
     console.error("EMPLOYEES ERROR:", error);
@@ -36,7 +38,7 @@ const getEmployee = async (req, res, next) => {
 const createEmployee = async (req, res, next) => {
   try {
     console.log('📝 POST /employees - Request body:', req.body);
-    const { name, phone, password, branch_id, geo_lat, geo_long, geo_radius, status } = req.body;
+    const { name, phone, password, branch_id, salary, geo_lat, geo_long, geo_radius, status } = req.body;
     
     const processedBranchId = branch_id === '' || branch_id === undefined ? null : branch_id;
     
@@ -46,12 +48,14 @@ const createEmployee = async (req, res, next) => {
       password, 
       role: 'employee',
       branch_id: processedBranchId, 
+      salary: Number(salary) || 0,
       geo_lat,
       geo_long,
       geo_radius: geo_radius || 100,
       status: status || 'active'
     });
     
+    employee.password = undefined;
     console.log('✅ Employee created:', employee);
     return successResponse(res, employee, 'Employee created successfully', 201);
   } catch (error) {
@@ -63,12 +67,14 @@ const createEmployee = async (req, res, next) => {
 const updateEmployee = async (req, res, next) => {
   try {
     console.log(`📝 PUT /employees/${req.params.id} - Request body:`, req.body);
-    const employee = await User.update(req.params.id, req.body);
+    const { password, ...updateData } = req.body;
+    const employee = await User.update(req.params.id, updateData);
     if (!employee) {
       console.log('⚠️ Employee not found:', req.params.id);
       return errorResponse(res, 'Employee not found', 404);
     }
     employee.password = undefined;
+    employee.salary = employee.salary ?? 0;
     console.log('✅ Employee updated:', employee);
     return successResponse(res, employee, 'Employee updated successfully');
   } catch (error) {

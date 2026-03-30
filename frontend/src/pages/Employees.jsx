@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { employeesAPI, branchesAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { getRoleColor, getStatusColor } from '../utils/helpers';
-import { Plus, Edit, Trash2, User, Loader2 } from 'lucide-react';
+import { Plus, Edit, Trash2, User, Loader2, Building2 } from 'lucide-react';
 
 const DEFAULT_EMPLOYEES = [];
 const DEFAULT_BRANCHES = [];
@@ -12,12 +12,20 @@ export default function Employees() {
   const { user } = useAuth();
   const [employees, setEmployees] = useState(DEFAULT_EMPLOYEES);
   const [branches, setBranches] = useState(DEFAULT_BRANCHES);
+  const [selectedBranch, setSelectedBranch] = useState('all');
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState(null);
   const [formData, setFormData] = useState(DEFAULT_FORM_DATA);
   const [error, setError] = useState(null);
+
+  const filteredEmployees = selectedBranch === 'all'
+    ? employees
+    : employees.filter(emp => {
+        const empBranchId = emp.branch_id?._id?.toString() || emp.branch_id?.toString();
+        return empBranchId === selectedBranch;
+      });
 
   const loadBranches = useCallback(async () => {
     try {
@@ -36,7 +44,12 @@ export default function Employees() {
       setError(null);
       const res = await employeesAPI.getAll();
       if (res?.data?.success && Array.isArray(res.data.data)) {
-        setEmployees(res.data.data);
+        const employeesData = res.data.data.map(emp => ({
+          ...emp,
+          salary: emp.salary ?? 0
+        }));
+        console.log('Employees loaded:', employeesData.map(e => ({ name: e.name, salary: e.salary })));
+        setEmployees(employeesData);
       }
     } catch (err) {
       console.error('Failed to load employees:', err);
@@ -51,6 +64,10 @@ export default function Employees() {
       await Promise.all([loadEmployees(), loadBranches()]);
     };
     loadData();
+
+
+
+    return () => clearInterval(interval);
   }, [loadEmployees, loadBranches]);
 
   const handleSubmit = async (e) => {
@@ -80,13 +97,14 @@ export default function Employees() {
 
   const handleEdit = (emp) => {
     setEditingEmployee(emp);
+    const branchId = emp.branch_id?._id || emp.branch_id || '';
     setFormData({
       name: emp.name,
       role: emp.role,
       phone: emp.phone,
       password: '',
-      branch_id: emp.branch_id || '',
-      salary: emp.salary,
+      branch_id: branchId,
+      salary: emp.salary || 0,
       status: emp.status
     });
     setError(null);
@@ -146,6 +164,27 @@ export default function Employees() {
         </div>
       )}
 
+      <div className="flex flex-wrap gap-4 mb-4">
+        <div className="relative">
+          <Building2 className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+          <select
+            value={selectedBranch}
+            onChange={(e) => setSelectedBranch(e.target.value)}
+            className="input pl-10 pr-8 appearance-none bg-white min-w-[180px]"
+          >
+            <option value="all">All Branches</option>
+            {branches.map(branch => (
+              <option key={branch.id || branch._id} value={branch.id || branch._id}>
+                {branch.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="text-sm text-gray-500 self-center">
+          {filteredEmployees.length} employee{filteredEmployees.length !== 1 ? 's' : ''}
+        </div>
+      </div>
+
       <div className="card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -163,15 +202,15 @@ export default function Employees() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {employees.length === 0 ? (
+              {filteredEmployees.length === 0 ? (
                 <tr>
                   <td colSpan="7" className="px-4 py-8 text-center text-gray-500">
-                    No employees found. Click "Add Employee" to create one.
+                    No employees found{selectedBranch !== 'all' ? ' for this branch' : ''}. Click "Add Employee" to create one.
                   </td>
                 </tr>
               ) : (
-                employees.map((emp) => (
-                  <tr key={emp.id} className="hover:bg-gray-50">
+                filteredEmployees.map((emp) => (
+                  <tr key={emp.id || emp._id} className="hover:bg-gray-50">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center">
@@ -185,9 +224,9 @@ export default function Employees() {
                         {emp.role}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{emp.branch_name|| '-'}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">{emp.branch_name || '-'}</td>
                     <td className="px-4 py-3 text-sm text-gray-600">{emp.phone}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">₹{emp.salary?.toLocaleString()}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">₹{(emp.salary || 0).toLocaleString()}</td>
                     <td className="px-4 py-3">
                       <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(emp.status)}`}>
                         {emp.status}
@@ -199,7 +238,7 @@ export default function Employees() {
                           <Edit className="w-4 h-4" />
                         </button>
                         {user?.role === 'admin' && (
-                          <button onClick={() => handleDelete(emp.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg">
+                          <button onClick={() => handleDelete(emp.id || emp._id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg">
                             <Trash2 className="w-4 h-4" />
                           </button>
                         )}
@@ -294,7 +333,7 @@ export default function Employees() {
                   >
                     <option value="">Select Branch</option>
                     {branches.map(b => (
-                      <option key={b.id} value={b.id}>{b.name}</option>
+                      <option key={b._id || b.id} value={b._id || b.id}>{b.name}</option>
                     ))}
                   </select>
                 </div>

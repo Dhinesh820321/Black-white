@@ -9,6 +9,7 @@ const userSchema = new mongoose.Schema({
   role: { type: String, enum: ['admin', 'employee'], required: true },
   branch_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch' },
   status: { type: String, enum: ['active', 'inactive'], default: 'active' },
+  salary: { type: Number, default: 0 },
   device_id: { type: String },
   password_changed_at: { type: Date },
   geo_lat: { type: Number },
