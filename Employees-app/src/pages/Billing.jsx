@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { customersAPI, servicesAPI, invoicesAPI } from '../api/api';
 import { useAuth } from '../context/AuthContext';
-import { Search, Plus, Trash2, Wallet, Smartphone, CreditCard, ChevronRight, Check } from 'lucide-react';
+import { Search, Plus, Wallet, Smartphone, ChevronRight, Check } from 'lucide-react';
 
 const Billing = () => {
   const { user } = useAuth();
   const [step, setStep] = useState(1);
   const [phone, setPhone] = useState('');
+  const [skipMobile, setSkipMobile] = useState(false);
   const [customer, setCustomer] = useState(null);
   const [services, setServices] = useState([]);
   const [selectedServices, setSelectedServices] = useState([]);
@@ -26,19 +27,34 @@ const Billing = () => {
   };
 
   const handleSearchCustomer = async () => {
-    if (phone.length < 10) return;
+    if (skipMobile) {
+      setCustomer({ isNew: false, skipped: true });
+      setStep(2);
+      return;
+    }
+    if (phone.trim().length < 10) return;
     setLoading(true);
     try {
-      const res = await customersAPI.search(phone);
+      const trimmedPhone = phone.trim();
+      const res = await customersAPI.search(trimmedPhone);
       if (res.success && res.data && res.data.length > 0) {
         setCustomer(res.data[0]);
         setStep(2);
       } else {
-        setCustomer({ phone, isNew: true });
+        setCustomer({ phone: trimmedPhone, isNew: true });
         setStep(2);
       }
     } catch (err) { console.error(err); }
     setLoading(false);
+  };
+
+  const handleSkipMobile = () => {
+    setSkipMobile(true);
+    setPhone('');
+  };
+
+  const handleEnableMobile = () => {
+    setSkipMobile(false);
   };
 
   const toggleService = (service) => {
@@ -56,36 +72,49 @@ const Billing = () => {
   const totalAmount = selectedServices.reduce((acc, s) => acc + s.price, 0);
 
   const handleSubmit = async () => {
-    if (selectedServices.length === 0) return;
+    console.log('📋 handleSubmit called');
+    console.log('   selectedServices:', selectedServices.length);
+    console.log('   customer:', customer);
+    console.log('   paymentType:', paymentType);
+    
+    if (selectedServices.length === 0) {
+      alert('Please select at least one service');
+      return;
+    }
+    if (customer?.isNew && !customer?.skipped && !customer?.name?.trim()) {
+      alert('Please enter customer name');
+      return;
+    }
+    
     setSubmitting(true);
     try {
-      let finalCustomerId = customer?.id || customer?._id;
-      
-      if (customer?.isNew) {
-        const custRes = await customersAPI.create({ name: customer.name || 'Walk-in', phone: customer.phone });
-        if (custRes.success) finalCustomerId = custRes.data.id || custRes.data._id;
-      }
-
-      const res = await invoicesAPI.create({
-        branch_id: user.branch_id?._id || user.branch_id?.id || user.branch_id,
-        customer_id: finalCustomerId,
-        employee_id: user._id || user.id,
+      const payload = {
+        mobile_number: customer?.skipped ? null : customer?.phone?.trim() || null,
+        customer_name: customer?.isNew ? customer?.name?.trim() : undefined,
         items: selectedServices.map(s => ({
-          service_id: s.id,
+          service_id: s.id || s._id,
+          service_name: s.name,
           quantity: 1,
           price: s.price
         })),
         payment_type: paymentType,
         total_amount: totalAmount,
         paid_amount: totalAmount
-      });
+      };
+      
+      console.log('📤 Sending payload:', payload);
+      
+      const res = await invoicesAPI.create(payload);
+      console.log('📥 Response:', res);
 
       if (res.success) {
         alert('Invoice created successfully!');
         resetForm();
       }
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to create invoice');
+      console.error('❌ Error:', err);
+      const message = err.response?.data?.message || err.message || 'Failed to create invoice';
+      alert(message);
     }
     setSubmitting(false);
   };
@@ -93,6 +122,7 @@ const Billing = () => {
   const resetForm = () => {
     setStep(1);
     setPhone('');
+    setSkipMobile(false);
     setCustomer(null);
     setSelectedServices([]);
     setPaymentType('CASH');
@@ -117,20 +147,43 @@ const Billing = () => {
               Find Customer
             </h3>
             <div className="space-y-2">
-              <input
-                type="tel"
-                placeholder="Enter 10-digit number"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                className="input h-14 pl-4 font-bold text-xl placeholder:text-gray-300"
-                maxLength={10}
-              />
-              <p className="text-xs text-gray-400 font-bold ml-1 uppercase">Enter phone to continue</p>
+              <div className="flex items-center gap-2">
+                <input
+                  id="phone"
+                  name="phone"
+                  type="tel"
+                  placeholder="Enter 10-digit number"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  className="input h-14 pl-4 font-bold text-xl placeholder:text-gray-300 flex-1"
+                  maxLength={10}
+                  autoComplete="tel"
+                  disabled={skipMobile}
+                />
+                {skipMobile ? (
+                  <button
+                    onClick={handleEnableMobile}
+                    className="btn-secondary h-14 px-4 rounded-xl text-sm font-bold whitespace-nowrap"
+                  >
+                    Use Mobile
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleSkipMobile}
+                    className="btn-secondary h-14 px-4 rounded-xl text-sm font-bold whitespace-nowrap"
+                  >
+                    Skip
+                  </button>
+                )}
+              </div>
+              <p className="text-xs text-gray-400 font-bold ml-1 uppercase">
+                {skipMobile ? 'Mobile skipped - anonymous billing' : 'Enter phone or skip to continue'}
+              </p>
             </div>
           </div>
           <button
             onClick={handleSearchCustomer}
-            disabled={loading || phone.length < 10}
+            disabled={loading || (!skipMobile && phone.trim().length < 10)}
             className="btn-primary w-full h-15 rounded-2xl text-lg font-bold flex items-center justify-center gap-2 shadow-lg shadow-primary-500/20 active:scale-95 transition-all"
           >
             {loading ? <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full" /> : <><ChevronRight size={22} /> Continue</>}
@@ -143,22 +196,29 @@ const Billing = () => {
            <div className="card border-primary-100 border-2 rounded-3xl p-5 bg-primary-50/30 flex items-center justify-between">
              <div className="flex items-center gap-3">
                <div className="w-12 h-12 bg-primary-600 rounded-2xl flex items-center justify-center text-white font-black text-xl shadow-lg border-2 border-white">
-                 {customer?.name?.charAt(0) || <Plus />}
+                 {customer?.skipped ? '?' : (customer?.name?.charAt(0) || <Plus />)}
                </div>
                <div>
                  <p className="text-xs text-gray-400 font-bold uppercase tracking-tight">Customer</p>
-                 <p className="text-lg font-black text-gray-900">{customer?.name || 'New Customer'}</p>
-                 <p className="text-xs text-primary-600 font-bold">{customer?.phone}</p>
+                 <p className="text-lg font-black text-gray-900">
+                   {customer?.skipped ? 'Walk-in Customer' : (customer?.name || 'New Customer')}
+                 </p>
+                 <p className="text-xs text-primary-600 font-bold">
+                   {customer?.skipped ? 'No mobile' : (customer?.phone || '')}
+                 </p>
                </div>
              </div>
-             {customer?.isNew && (
-               <input
-                 type="text"
-                 placeholder="Enter Name"
-                 onChange={(e) => setCustomer({ ...customer, name: e.target.value })}
-                 className="input h-10 w-32 text-sm bg-white"
-               />
-             )}
+              {customer?.isNew && !customer?.skipped && (
+                <input
+                  id="customerName"
+                  name="customerName"
+                  type="text"
+                  placeholder="Enter Name"
+                  onChange={(e) => setCustomer({ ...customer, name: e.target.value })}
+                  className="input h-10 w-32 text-sm bg-white"
+                  autoComplete="name"
+                />
+              )}
            </div>
 
            <div className="space-y-3">
@@ -243,6 +303,7 @@ const Billing = () => {
           </div>
 
           <button
+            type="button"
             onClick={handleSubmit}
             disabled={submitting}
             className="btn-primary w-full h-16 rounded-2xl text-xl font-black flex items-center justify-center gap-3 shadow-xl shadow-primary-500/30 active:scale-95 transition-all mt-4"

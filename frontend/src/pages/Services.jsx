@@ -177,6 +177,7 @@ export default function Services() {
                   id="serviceName"
                   name="name"
                   type="text"
+                  autoComplete="off"
                   value={formData.name}
                   onChange={(e) => setFormData({...formData, name: e.target.value})}
                   className="input"
@@ -191,6 +192,7 @@ export default function Services() {
                     id="servicePrice"
                     name="price"
                     type="number"
+                    autoComplete="off"
                     value={formData.price}
                     onChange={(e) => setFormData({...formData, price: e.target.value})}
                     className="input"
@@ -205,6 +207,7 @@ export default function Services() {
                     id="serviceDuration"
                     name="duration_minutes"
                     type="number"
+                    autoComplete="off"
                     value={formData.duration_minutes}
                     onChange={(e) => setFormData({...formData, duration_minutes: e.target.value})}
                     className="input"
@@ -220,6 +223,7 @@ export default function Services() {
                     id="serviceGst"
                     name="gst_percentage"
                     type="number"
+                    autoComplete="off"
                     value={formData.gst_percentage}
                     onChange={(e) => setFormData({...formData, gst_percentage: e.target.value})}
                     className="input"
@@ -233,6 +237,7 @@ export default function Services() {
                     id="serviceCommission"
                     name="commission_percentage"
                     type="number"
+                    autoComplete="off"
                     value={formData.commission_percentage}
                     onChange={(e) => setFormData({...formData, commission_percentage: e.target.value})}
                     className="input"
@@ -247,6 +252,7 @@ export default function Services() {
                 <select
                   id="serviceStatus"
                   name="status"
+                  autoComplete="off"
                   value={formData.status}
                   onChange={(e) => setFormData({...formData, status: e.target.value})}
                   className="input"

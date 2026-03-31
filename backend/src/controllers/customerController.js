@@ -27,7 +27,12 @@ const createCustomer = async (req, res, next) => {
   try {
     console.log('📝 POST /customers - Request body:', req.body);
     const { name, phone, email, notes } = req.body;
-    const customer = await Customer.create({ name, phone, email, notes });
+    const customer = await Customer.create({ 
+      name: (name || 'Walk-in').trim(), 
+      phone: phone?.trim(), 
+      email: email?.trim(), 
+      notes: notes?.trim() 
+    });
     console.log('✅ Customer created:', customer);
     return successResponse(res, customer, 'Customer created successfully', 201);
   } catch (error) {

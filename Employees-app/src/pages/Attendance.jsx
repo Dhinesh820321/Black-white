@@ -13,6 +13,8 @@ const Attendance = () => {
     if ("geolocation" in navigator) {
       navigator.geolocation.getCurrentPosition(p => setLocation({ lat: p.coords.latitude, lng: p.coords.longitude }));
     }
+    const interval = setInterval(fetchStatus, 5000);
+    return () => clearInterval(interval);
   }, []);
 
   const fetchStatus = async () => {

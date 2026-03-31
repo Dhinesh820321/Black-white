@@ -242,6 +242,7 @@ export default function Expenses() {
                 <select
                   id="expBranch"
                   name="branch_id"
+                  autoComplete="off"
                   value={formData.branch_id}
                   onChange={(e) => setFormData({...formData, branch_id: e.target.value})}
                   className="input"
@@ -260,6 +261,7 @@ export default function Expenses() {
                   id="expTitle"
                   name="title"
                   type="text"
+                  autoComplete="off"
                   value={formData.title}
                   onChange={(e) => setFormData({...formData, title: e.target.value})}
                   className="input"
@@ -274,6 +276,7 @@ export default function Expenses() {
                     id="expAmount"
                     name="amount"
                     type="number"
+                    autoComplete="off"
                     value={formData.amount}
                     onChange={(e) => setFormData({...formData, amount: e.target.value})}
                     className="input"
@@ -287,6 +290,7 @@ export default function Expenses() {
                   <select
                     id="expCategory"
                     name="category"
+                    autoComplete="off"
                     value={formData.category}
                     onChange={(e) => setFormData({...formData, category: e.target.value})}
                     className="input"

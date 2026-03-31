@@ -2,12 +2,13 @@ const mongoose = require('mongoose');
 const { v4: uuidv4 } = require('uuid');
 
 const invoiceItemSchema = new mongoose.Schema({
-  service_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Service', required: true },
+  service_id: { type: String, required: true },
+  service_name: { type: String },
   quantity: { type: Number, default: 1 },
   price: { type: Number, required: true },
   gst_percentage: { type: Number, default: 0 },
-  subtotal: { type: Number, required: true }
-});
+  subtotal: { type: Number }
+}, { _id: false });
 
 const invoiceSchema = new mongoose.Schema({
   branch_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch', required: true },
@@ -65,32 +66,32 @@ class Invoice {
     
     try {
       const processedItems = (data.items || []).map(item => ({
-        ...item,
-        subtotal: item.subtotal || (item.price * (item.quantity || 1))
+        service_id: item.service_id?.toString(),
+        service_name: item.service_name || '',
+        quantity: item.quantity || 1,
+        price: item.price || 0,
+        subtotal: item.subtotal || ((item.price || 0) * (item.quantity || 1))
       }));
 
       const finalAmount = data.final_amount || data.total_amount || 0;
 
-      const invoice = new InvoiceModel({ 
-        ...data, 
+      const invoiceData = {
+        ...data,
         items: processedItems,
         final_amount: finalAmount,
-        invoice_number: invoiceNumber 
-      });
-      await invoice.save();
+        invoice_number: invoiceNumber,
+        branch_id: data.branch_id?.toString(),
+        employee_id: data.employee_id?.toString(),
+        customer_id: data.customer_id?.toString() || undefined
+      };
 
-      if (data.customer_id) {
-        const CustomerModel = mongoose.model('Customer');
-        await CustomerModel.findByIdAndUpdate(data.customer_id, {
-          $set: { last_visit: new Date() },
-          $inc: { loyalty_points: Math.floor(finalAmount / 100) }
-        });
-      }
+      const invoice = new InvoiceModel(invoiceData);
+      await invoice.save();
 
       const PaymentModel = mongoose.model('Payment');
       const payment = new PaymentModel({
-        branch_id: data.branch_id,
-        employee_id: data.employee_id,
+        branch_id: invoice.branch_id,
+        employee_id: invoice.employee_id,
         invoice_id: invoice._id,
         amount: finalAmount,
         payment_type: data.payment_type

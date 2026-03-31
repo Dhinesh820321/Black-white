@@ -1,4 +1,5 @@
 const Invoice = require('../models/Invoice');
+const Customer = require('../models/Customer');
 const { successResponse, errorResponse } = require('../utils/responseHelper');
 
 const getAllInvoices = async (req, res, next) => {
@@ -51,10 +52,17 @@ const getInvoice = async (req, res, next) => {
 
 const createInvoice = async (req, res, next) => {
   try {
-    const { customer_id, items, total_amount, tax_amount, discount, final_amount, payment_type, notes } = req.body;
+    const { customer_id, mobile_number, customer_name, items, total_amount, tax_amount, discount, final_amount, payment_type, notes } = req.body;
     
     const employeeId = req.user._id || req.user.id;
     let branchId = req.user.branch_id;
+    
+    console.log('📋 CREATE INVOICE DEBUG:', {
+      user: req.user,
+      employeeId,
+      rawBranchId: branchId,
+      branchIdType: typeof branchId
+    });
     
     if (typeof branchId === 'object' && branchId !== null) {
       branchId = branchId._id || branchId.id;
@@ -65,10 +73,17 @@ const createInvoice = async (req, res, next) => {
       employeeId, 
       branchId,
       customer_id,
+      mobile_number,
       itemCount: items?.length 
     });
 
     if (!branchId) {
+      console.error('❌ Branch ID missing for invoice creation:', { 
+        user: req.user?.name, 
+        role: req.user?.role,
+        userBranchId: req.user?.branch_id,
+        userDbBranchId: req.user?.branch_id?._id || req.user?.branch_id?.id
+      });
       return errorResponse(res, 'Branch ID missing. Please contact admin.', 400);
     }
 
@@ -76,9 +91,29 @@ const createInvoice = async (req, res, next) => {
       return errorResponse(res, 'At least one service item is required', 400);
     }
 
+    let finalCustomerId = customer_id || null;
+
+    if (mobile_number) {
+      const trimmedMobile = mobile_number.trim();
+      const existingCustomer = await Customer.findByPhone(trimmedMobile);
+      
+      if (existingCustomer) {
+        await Customer.update(existingCustomer._id.toString(), { last_visit: new Date() });
+        finalCustomerId = existingCustomer._id.toString();
+        console.log('✅ Existing customer last_visit updated:', existingCustomer.phone);
+      } else {
+        const newCustomer = await Customer.create({ 
+          name: (customer_name || 'Walk-in').trim(), 
+          phone: trimmedMobile
+        });
+        finalCustomerId = newCustomer._id.toString();
+        console.log('✅ New customer created:', newCustomer.phone);
+      }
+    }
+
     const invoice = await Invoice.create({ 
       branch_id: branchId, 
-      customer_id: customer_id || null, 
+      customer_id: finalCustomerId, 
       employee_id: employeeId, 
       items, 
       total_amount: total_amount || final_amount || 0, 

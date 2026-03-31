@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { employeesAPI, branchesAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { getRoleColor, getStatusColor } from '../utils/helpers';
@@ -27,48 +27,35 @@ export default function Employees() {
         return empBranchId === selectedBranch;
       });
 
-  const loadBranches = useCallback(async () => {
-    try {
-      const branchRes = await branchesAPI.getAll();
-      if (branchRes?.data?.success && Array.isArray(branchRes.data.data)) {
-        setBranches(branchRes.data.data);
-      }
-    } catch (err) {
-      console.error('Failed to load branches:', err);
-    }
-  }, []);
-
-  const loadEmployees = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const res = await employeesAPI.getAll();
-      if (res?.data?.success && Array.isArray(res.data.data)) {
-        const employeesData = res.data.data.map(emp => ({
-          ...emp,
-          salary: emp.salary ?? 0
-        }));
-        console.log('Employees loaded:', employeesData.map(e => ({ name: e.name, salary: e.salary })));
-        setEmployees(employeesData);
-      }
-    } catch (err) {
-      console.error('Failed to load employees:', err);
-      setError(err.response?.data?.message || 'Failed to load employees');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
     const loadData = async () => {
-      await Promise.all([loadEmployees(), loadBranches()]);
+      try {
+        setLoading(true);
+        setError(null);
+        const [empRes, branchRes] = await Promise.all([
+          employeesAPI.getAll(),
+          branchesAPI.getAll()
+        ]);
+        if (empRes?.data?.success && Array.isArray(empRes.data.data)) {
+          const employeesData = empRes.data.data.map(emp => ({
+            ...emp,
+            salary: emp.salary ?? 0
+          }));
+          setEmployees(employeesData);
+        }
+        if (branchRes?.data?.success && Array.isArray(branchRes.data.data)) {
+          setBranches(branchRes.data.data);
+        }
+      } catch (err) {
+        console.error('Failed to load employees:', err);
+        setError(err.response?.data?.message || 'Failed to load employees');
+      } finally {
+        setLoading(false);
+      }
     };
+
     loadData();
-
-
-
-    return () => clearInterval(interval);
-  }, [loadEmployees, loadBranches]);
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -84,9 +71,20 @@ export default function Employees() {
         await employeesAPI.create(formData);
       }
       
-      await loadEmployees();
+      const loadEmployees = async () => {
+        const res = await employeesAPI.getAll();
+        if (res?.data?.success && Array.isArray(res.data.data)) {
+          const employeesData = res.data.data.map(emp => ({
+            ...emp,
+            salary: emp.salary ?? 0
+          }));
+          setEmployees(employeesData);
+        }
+      };
+
       setShowModal(false);
       resetForm();
+      await loadEmployees();
     } catch (err) {
       console.error('Submit error:', err);
       setError(err.response?.data?.message || 'Operation failed. Please try again.');
@@ -116,6 +114,16 @@ export default function Employees() {
     
     try {
       await employeesAPI.delete(id);
+      const loadEmployees = async () => {
+        const res = await employeesAPI.getAll();
+        if (res?.data?.success && Array.isArray(res.data.data)) {
+          const employeesData = res.data.data.map(emp => ({
+            ...emp,
+            salary: emp.salary ?? 0
+          }));
+          setEmployees(employeesData);
+        }
+      };
       await loadEmployees();
     } catch (err) {
       console.error('Delete error:', err);
@@ -168,6 +176,8 @@ export default function Employees() {
         <div className="relative">
           <Building2 className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
           <select
+            id="filterBranch"
+            name="filterBranch"
             value={selectedBranch}
             onChange={(e) => setSelectedBranch(e.target.value)}
             className="input pl-10 pr-8 appearance-none bg-white min-w-[180px]"
@@ -266,6 +276,7 @@ export default function Employees() {
                   id="empName"
                   name="name"
                   type="text"
+                  autoComplete="name"
                   value={formData.name}
                   onChange={(e) => setFormData({...formData, name: e.target.value})}
                   className="input"
@@ -279,6 +290,7 @@ export default function Employees() {
                   <select
                     id="empRole"
                     name="role"
+                    autoComplete="off"
                     value={formData.role}
                     onChange={(e) => setFormData({...formData, role: e.target.value})}
                     className="input"
@@ -296,6 +308,7 @@ export default function Employees() {
                     id="empPhone"
                     name="phone"
                     type="tel"
+                    autoComplete="tel"
                     value={formData.phone}
                     onChange={(e) => setFormData({...formData, phone: e.target.value})}
                     className="input"
@@ -313,6 +326,7 @@ export default function Employees() {
                   id="empPassword"
                   name="password"
                   type="password"
+                  autoComplete={editingEmployee ? 'new-password' : 'new-password'}
                   value={formData.password}
                   onChange={(e) => setFormData({...formData, password: e.target.value})}
                   className="input"
@@ -327,6 +341,7 @@ export default function Employees() {
                   <select
                     id="empBranch"
                     name="branch_id"
+                    autoComplete="off"
                     value={formData.branch_id}
                     onChange={(e) => setFormData({...formData, branch_id: e.target.value})}
                     className="input"
@@ -343,8 +358,9 @@ export default function Employees() {
                     id="empSalary"
                     name="salary"
                     type="number"
+                    autoComplete="off"
                     value={formData.salary}
-                    onChange={(e) => setFormData({...formData, salary: e.target.value})}
+                    onChange={(e) => setFormData({...formData, salary: Number(e.target.value)})}
                     className="input"
                   />
                 </div>
@@ -355,6 +371,7 @@ export default function Employees() {
                 <select
                   id="empStatus"
                   name="status"
+                  autoComplete="off"
                   value={formData.status}
                   onChange={(e) => setFormData({...formData, status: e.target.value})}
                   className="input"

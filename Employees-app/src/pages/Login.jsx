@@ -68,10 +68,13 @@ const Login = () => {
 
         <form onSubmit={handleSubmit} className="space-y-5 animate-in fade-in slide-in-from-bottom-10 duration-700 delay-150">
           <div className="space-y-1.5">
-            <label className="text-sm font-bold text-gray-700 ml-1">Phone Number</label>
+            <label htmlFor="phone" className="text-sm font-bold text-gray-700 ml-1">Phone Number</label>
             <div className="relative group">
               <input
+                id="phone"
+                name="phone"
                 type="tel"
+                autoComplete="tel"
                 placeholder="Enter 10-digit phone"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
@@ -83,10 +86,13 @@ const Login = () => {
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-sm font-bold text-gray-700 ml-1">Password</label>
+            <label htmlFor="password" className="text-sm font-bold text-gray-700 ml-1">Password</label>
             <div className="relative group">
               <input
+                id="password"
+                name="password"
                 type={showPassword ? 'text' : 'password'}
+                autoComplete="current-password"
                 placeholder="Enter security password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}

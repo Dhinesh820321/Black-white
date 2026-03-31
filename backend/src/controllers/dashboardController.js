@@ -15,52 +15,56 @@ const getDashboard = async (req, res, next) => {
     tomorrow.setDate(tomorrow.getDate() + 1);
     const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
 
-    const isValidBranch = branch_id && mongoose.Types.ObjectId.isValid(branch_id);
-    const branchFilter = isValidBranch ? { branch_id: new mongoose.Types.ObjectId(branch_id) } : {};
+    const todayMatch = { created_at: { $gte: today, $lt: tomorrow }, status: 'completed' };
+    if (branch_id && mongoose.Types.ObjectId.isValid(branch_id)) {
+      todayMatch.branch_id = new mongoose.Types.ObjectId(branch_id);
+    }
 
-    const todayInvoices = await Invoice.findAll({ ...branchFilter, date: today });
-    const todayRevenue = todayInvoices.reduce((sum, inv) => sum + (inv.final_amount || 0), 0);
-    
-    // Month revenue aggregation (simplified using find for now)
-    const monthInvoices = await Invoice.findAll({ 
-      ...branchFilter, 
-      start_date: firstDayOfMonth.toISOString(), 
-      end_date: tomorrow.toISOString() 
-    });
-    const monthlyRevenue = monthInvoices.reduce((sum, inv) => sum + (inv.final_amount || 0), 0);
+    const monthMatch = { created_at: { $gte: firstDayOfMonth, $lt: tomorrow }, status: 'completed' };
+    if (branch_id && mongoose.Types.ObjectId.isValid(branch_id)) {
+      monthMatch.branch_id = new mongoose.Types.ObjectId(branch_id);
+    }
 
-    const todayPayments = await Payment.findAll({ ...branchFilter, date: today });
-    const collectionStats = todayPayments.reduce((stats, pay) => {
-      stats.total += pay.amount || 0;
-      if (pay.payment_type === 'UPI') stats.upi += pay.amount || 0;
-      if (pay.payment_type === 'CASH') stats.cash += pay.amount || 0;
-      return stats;
-    }, { total: 0, upi: 0, cash: 0 });
+    const todayData = await InvoiceModel.aggregate([
+      { $match: todayMatch },
+      { $group: {
+        _id: null,
+        total: { $sum: '$final_amount' },
+        upi: { $sum: { $cond: [{ $eq: ['$payment_type', 'UPI'] }, '$final_amount', 0] } },
+        cash: { $sum: { $cond: [{ $eq: ['$payment_type', 'CASH'] }, '$final_amount', 0] } },
+        count: { $sum: 1 }
+      }}
+    ]);
+
+    const monthData = await InvoiceModel.aggregate([
+      { $match: monthMatch },
+      { $group: {
+        _id: null,
+        total: { $sum: '$final_amount' }
+      }}
+    ]);
 
     const attendanceRecords = await Attendance.getTodayAttendance(branch_id);
-    
     const lowStock = await Inventory.getLowStockAlerts(branch_id);
     const retentionAlerts = await Customer.getRetentionAlerts(branch_id);
     
-    // For large datasets, use countDocuments()
-    const UserModel = mongoose.model('User');
     const CustomerModel = mongoose.model('Customer');
     const totalCustomers = await CustomerModel.countDocuments();
 
     const dashboard = {
       today: {
-        revenue: todayRevenue,
-        collection: collectionStats.total,
-        upiCollection: collectionStats.upi,
-        cashCollection: collectionStats.cash,
-        invoices: todayInvoices.length,
+        revenue: todayData[0]?.total || 0,
+        collection: todayData[0]?.total || 0,
+        upiCollection: todayData[0]?.upi || 0,
+        cashCollection: todayData[0]?.cash || 0,
+        invoices: todayData[0]?.count || 0,
         attendance: {
           total: attendanceRecords.length,
           checkedIn: attendanceRecords.filter(a => a.status === 'checked_in').length
         }
       },
       month: {
-        revenue: monthlyRevenue
+        revenue: monthData[0]?.total || 0
       },
       totals: {
         lowStockItems: lowStock.length,

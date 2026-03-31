@@ -36,7 +36,8 @@ class Customer {
   }
 
   static async findByPhone(phone) {
-    return CustomerModel.findOne({ phone }).lean();
+    if (!phone) return null;
+    return CustomerModel.findOne({ phone: phone.trim() }).lean();
   }
 
   static async create(data) {

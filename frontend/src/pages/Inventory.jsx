@@ -249,6 +249,7 @@ export default function Inventory() {
                   id="invItemName"
                   name="item_name"
                   type="text"
+                  autoComplete="off"
                   value={formData.item_name}
                   onChange={(e) => setFormData({...formData, item_name: e.target.value})}
                   className="input"
@@ -262,6 +263,7 @@ export default function Inventory() {
                   <select
                     id="invCategory"
                     name="category"
+                    autoComplete="off"
                     value={formData.category}
                     onChange={(e) => setFormData({...formData, category: e.target.value})}
                     className="input"
@@ -278,6 +280,7 @@ export default function Inventory() {
                     id="invUnit"
                     name="unit"
                     type="text"
+                    autoComplete="off"
                     value={formData.unit}
                     onChange={(e) => setFormData({...formData, unit: e.target.value})}
                     className="input"
@@ -293,6 +296,7 @@ export default function Inventory() {
                     id="invQuantity"
                     name="total_quantity"
                     type="number"
+                    autoComplete="off"
                     value={formData.total_quantity}
                     onChange={(e) => setFormData({...formData, total_quantity: e.target.value})}
                     className="input"
@@ -306,6 +310,7 @@ export default function Inventory() {
                     id="invMinLevel"
                     name="min_stock_level"
                     type="number"
+                    autoComplete="off"
                     value={formData.min_stock_level}
                     onChange={(e) => setFormData({...formData, min_stock_level: e.target.value})}
                     className="input"
@@ -318,6 +323,7 @@ export default function Inventory() {
                     id="invCost"
                     name="cost_per_unit"
                     type="number"
+                    autoComplete="off"
                     value={formData.cost_per_unit}
                     onChange={(e) => setFormData({...formData, cost_per_unit: e.target.value})}
                     className="input"

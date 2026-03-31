@@ -7,7 +7,6 @@ const auth = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
     console.log(`🔐 Auth middleware: ${req.method} ${req.path}`);
-    console.log(`   Auth header present: ${!!authHeader}`);
     
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       console.log('❌ Auth failed: No token provided');
@@ -15,10 +14,9 @@ const auth = async (req, res, next) => {
     }
 
     const token = authHeader.split(' ')[1];
-    console.log(`   Token preview: ${token.substring(0, 20)}...`);
-    
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    console.log(`   Token decoded:`, decoded);
+    
+    console.log(`   Token decoded - branch_id from token: ${decoded.branch_id}`);
 
     const user = await User.findById(decoded.id);
 
@@ -27,11 +25,16 @@ const auth = async (req, res, next) => {
       return errorResponse(res, 'Invalid token. User not found or inactive.', 401);
     }
 
-    if (user.branch_id && typeof user.branch_id === 'object') {
+    console.log(`   User from DB - branch_id: ${user.branch_id}, populated: ${typeof user.branch_id === 'object'}`);
+    
+    if (decoded.branch_id) {
+      user.branch_id = decoded.branch_id;
+    } else if (user.branch_id && typeof user.branch_id === 'object') {
       user.branch_id = user.branch_id._id || user.branch_id.id;
     }
+    
     req.user = user;
-    console.log(`✅ Auth success: ${user.name} (${user.role}) - branch: ${user.branch_id}`);
+    console.log(`✅ Auth success: ${user.name} (${user.role}) - final branch_id: ${user.branch_id}`);
     next();
   } catch (error) {
     console.error(`❌ Auth error: ${error.name} - ${error.message}`);

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { attendanceAPI, branchesAPI, employeesAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { formatTime } from '../utils/helpers';
@@ -36,54 +36,59 @@ export default function Attendance() {
   
   const [stats, setStats] = useState({ totalPresent: 0, totalAbsent: 0, totalHours: 0 });
 
-  const loadBranches = useCallback(async () => {
-    try {
-      const res = await branchesAPI.getAll();
-      if (res?.data?.success && Array.isArray(res.data.data)) {
-        setBranches(res.data.data);
-      }
-    } catch (error) {
-      console.error('Failed to load branches:', error);
-    }
-  }, []);
+  const selectedBranchRef = useRef(selectedBranch);
 
-  const loadEmployees = useCallback(async () => {
-    try {
-      const res = await employeesAPI.getAll();
-      if (res?.data?.success && Array.isArray(res.data.data)) {
-        setEmployees(res.data.data);
-      }
-    } catch (error) {
-      console.error('Failed to load employees:', error);
-    }
-  }, []);
-
-  const loadAttendance = useCallback(async () => {
-    try {
-      setLoading(true);
-      const params = {};
-      
-      if (selectedBranch) params.branch_id = selectedBranch;
-      
-      const res = await attendanceAPI.getAll(params);
-      if (res?.data?.success && Array.isArray(res.data.data)) {
-        setAttendance(res.data.data);
-      }
-    } catch (error) {
-      console.error('Failed to load attendance:', error);
-    } finally {
-      setLoading(false);
-    }
+  useEffect(() => {
+    selectedBranchRef.current = selectedBranch;
   }, [selectedBranch]);
 
   useEffect(() => {
-    loadBranches();
-    loadEmployees();
-  }, [loadBranches, loadEmployees]);
+    const loadBranches = async () => {
+      try {
+        const res = await branchesAPI.getAll();
+        if (res?.data?.success && Array.isArray(res.data.data)) {
+          setBranches(res.data.data);
+        }
+      } catch (error) {
+        console.error('Failed to load branches:', error);
+      }
+    };
 
-  useEffect(() => {
-    loadAttendance();
-  }, [loadAttendance]);
+    const loadEmployees = async () => {
+      try {
+        const res = await employeesAPI.getAll();
+        if (res?.data?.success && Array.isArray(res.data.data)) {
+          setEmployees(res.data.data);
+        }
+      } catch (error) {
+        console.error('Failed to load employees:', error);
+      }
+    };
+
+    const loadAttendance = async () => {
+      try {
+        setLoading(true);
+        const params = {};
+        
+        if (selectedBranchRef.current) params.branch_id = selectedBranchRef.current;
+        
+        const res = await attendanceAPI.getAll(params);
+        if (res?.data?.success && Array.isArray(res.data.data)) {
+          setAttendance(res.data.data);
+        }
+      } catch (error) {
+        console.error('Failed to load attendance:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    const loadAll = async () => {
+      await Promise.all([loadBranches(), loadEmployees(), loadAttendance()]);
+    };
+
+    loadAll();
+  }, []);
 
   const filteredAttendance = useMemo(() => {
     return attendance.filter(record => {
@@ -239,6 +244,8 @@ export default function Attendance() {
               <div className="flex items-center gap-2">
                 <Calendar className="w-5 h-5 text-gray-400" />
                 <input
+                  id="selectedDate"
+                  name="selectedDate"
                   type="date"
                   value={selectedDate}
                   onChange={(e) => setSelectedDate(e.target.value)}
@@ -249,6 +256,8 @@ export default function Attendance() {
               <div className="flex items-center gap-2">
                 <Calendar className="w-5 h-5 text-gray-400" />
                 <input
+                  id="selectedMonth"
+                  name="selectedMonth"
                   type="month"
                   value={selectedMonth}
                   onChange={(e) => setSelectedMonth(e.target.value)}
@@ -263,6 +272,8 @@ export default function Attendance() {
               <div className="relative">
                 <Building2 className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
                 <select
+                  id="selectedBranch"
+                  name="selectedBranch"
                   value={selectedBranch}
                   onChange={(e) => setSelectedBranch(e.target.value)}
                   className="input pl-10 pr-8 appearance-none bg-white min-w-[160px]"
@@ -279,6 +290,8 @@ export default function Attendance() {
               <div className="relative">
                 <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
                 <select
+                  id="selectedEmployee"
+                  name="selectedEmployee"
                   value={selectedEmployee}
                   onChange={(e) => setSelectedEmployee(e.target.value)}
                   className="input pl-10 pr-8 appearance-none bg-white min-w-[160px]"

@@ -106,6 +106,8 @@ export default function Customers() {
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
+              id="customerSearch"
+              name="customerSearch"
               type="text"
               placeholder="Search by name or phone..."
               value={searchTerm}
