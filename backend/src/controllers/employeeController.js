@@ -92,6 +92,32 @@ const deleteEmployee = async (req, res, next) => {
   }
 };
 
+const getEmployeeByPhone = async (req, res, next) => {
+  try {
+    const employee = await User.findByPhone(req.params.phone);
+    if (!employee) {
+      return errorResponse(res, 'Employee not found', 404);
+    }
+    employee.password = undefined;
+    return successResponse(res, employee);
+  } catch (error) {
+    next(error);
+  }
+};
+
+const deleteEmployeeByPhone = async (req, res, next) => {
+  try {
+    const employee = await User.findByPhone(req.params.phone);
+    if (!employee) {
+      return errorResponse(res, 'Employee not found', 404);
+    }
+    await User.delete(employee._id);
+    return successResponse(res, null, 'Employee deleted successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
 const getEmployeePerformance = async (req, res, next) => {
   try {
     const { start_date, end_date } = req.query;
@@ -111,4 +137,4 @@ const getEmployeePerformance = async (req, res, next) => {
   }
 };
 
-module.exports = { getAllEmployees, getEmployee, createEmployee, updateEmployee, deleteEmployee, getEmployeePerformance };
+module.exports = { getAllEmployees, getEmployee, createEmployee, updateEmployee, deleteEmployee, getEmployeeByPhone, deleteEmployeeByPhone, getEmployeePerformance };

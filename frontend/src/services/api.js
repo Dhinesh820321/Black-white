@@ -145,6 +145,15 @@ export const expensesAPI = {
   getSummary: (params) => api.get('/expenses/summary', { params })
 };
 
+export const expenseCategoriesAPI = {
+  getAll: (params) => api.get('/expense-categories', { params }),
+  getActive: () => api.get('/expense-categories/active'),
+  getById: (id) => api.get(`/expense-categories/${id}`),
+  create: (data) => api.post('/expense-categories', data),
+  update: (id, data) => api.put(`/expense-categories/${id}`, data),
+  delete: (id) => api.delete(`/expense-categories/${id}`)
+};
+
 export const inventoryAPI = {
   getAll: (params) => api.get('/inventory', { params }),
   getById: (id) => api.get(`/inventory/${id}`),

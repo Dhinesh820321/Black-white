@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { employeesAPI, branchesAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { getRoleColor, getStatusColor } from '../utils/helpers';
-import { Plus, Edit, Trash2, User, Loader2, Building2 } from 'lucide-react';
+import { Plus, Edit, Trash2, User, Loader2, Building2, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const DEFAULT_EMPLOYEES = [];
+const ITEMS_PER_PAGE = 10;
 const DEFAULT_BRANCHES = [];
 const DEFAULT_FORM_DATA = { name: '', role: 'stylist', phone: '', password: '', branch_id: '', salary: 0, status: 'active' };
 
@@ -19,6 +20,9 @@ export default function Employees() {
   const [editingEmployee, setEditingEmployee] = useState(null);
   const [formData, setFormData] = useState(DEFAULT_FORM_DATA);
   const [error, setError] = useState(null);
+  const [pagination, setPagination] = useState({ page: 1, total: 0, totalPages: 0 });
+
+  const isModalOpen = useRef(false);
 
   const filteredEmployees = selectedBranch === 'all'
     ? employees
@@ -27,24 +31,63 @@ export default function Employees() {
         return empBranchId === selectedBranch;
       });
 
+  const paginatedEmployees = filteredEmployees.slice((pagination.page - 1) * ITEMS_PER_PAGE, pagination.page * ITEMS_PER_PAGE);
+
   useEffect(() => {
-    const loadData = async () => {
+    const total = filteredEmployees.length;
+    setPagination(prev => ({
+      ...prev,
+      total,
+      totalPages: Math.max(1, Math.ceil(total / ITEMS_PER_PAGE))
+    }));
+  }, [filteredEmployees]);
+
+  const getPageNumbers = () => {
+    const pages = [];
+    const total = pagination.totalPages;
+    const current = pagination.page;
+    
+    if (total <= 5) {
+      for (let i = 1; i <= total; i++) pages.push(i);
+    } else {
+      if (current <= 3) {
+        pages.push(1, 2, 3, 4, '...', total);
+      } else if (current >= total - 2) {
+        pages.push(1, '...', total - 3, total - 2, total - 1, total);
+      } else {
+        pages.push(1, '...', current - 1, current, current + 1, '...', total);
+      }
+    }
+    return pages;
+  };
+
+  useEffect(() => {
+    isModalOpen.current = showModal;
+  }, [showModal]);
+
+  useEffect(() => {
+    const loadBranches = async () => {
+      try {
+        const branchRes = await branchesAPI.getAll();
+        if (branchRes?.data?.success && Array.isArray(branchRes.data.data)) {
+          setBranches(branchRes.data.data);
+        }
+      } catch (err) {
+        console.error('Failed to load branches:', err);
+      }
+    };
+
+    const loadEmployees = async () => {
       try {
         setLoading(true);
         setError(null);
-        const [empRes, branchRes] = await Promise.all([
-          employeesAPI.getAll(),
-          branchesAPI.getAll()
-        ]);
-        if (empRes?.data?.success && Array.isArray(empRes.data.data)) {
-          const employeesData = empRes.data.data.map(emp => ({
+        const res = await employeesAPI.getAll();
+        if (res?.data?.success && Array.isArray(res.data.data)) {
+          const employeesData = res.data.data.map(emp => ({
             ...emp,
             salary: emp.salary ?? 0
           }));
           setEmployees(employeesData);
-        }
-        if (branchRes?.data?.success && Array.isArray(branchRes.data.data)) {
-          setBranches(branchRes.data.data);
         }
       } catch (err) {
         console.error('Failed to load employees:', err);
@@ -54,7 +97,21 @@ export default function Employees() {
       }
     };
 
+    const loadData = async () => {
+      await Promise.all([loadEmployees(), loadBranches()]);
+    };
+
     loadData();
+
+    if (isModalOpen.current) return;
+
+    const interval = setInterval(() => {
+      if (!isModalOpen.current) {
+        loadData();
+      }
+    }, 5000);
+
+    return () => clearInterval(interval);
   }, []);
 
   const handleSubmit = async (e) => {
@@ -71,20 +128,9 @@ export default function Employees() {
         await employeesAPI.create(formData);
       }
       
-      const loadEmployees = async () => {
-        const res = await employeesAPI.getAll();
-        if (res?.data?.success && Array.isArray(res.data.data)) {
-          const employeesData = res.data.data.map(emp => ({
-            ...emp,
-            salary: emp.salary ?? 0
-          }));
-          setEmployees(employeesData);
-        }
-      };
-
+      await loadEmployees();
       setShowModal(false);
       resetForm();
-      await loadEmployees();
     } catch (err) {
       console.error('Submit error:', err);
       setError(err.response?.data?.message || 'Operation failed. Please try again.');
@@ -114,16 +160,6 @@ export default function Employees() {
     
     try {
       await employeesAPI.delete(id);
-      const loadEmployees = async () => {
-        const res = await employeesAPI.getAll();
-        if (res?.data?.success && Array.isArray(res.data.data)) {
-          const employeesData = res.data.data.map(emp => ({
-            ...emp,
-            salary: emp.salary ?? 0
-          }));
-          setEmployees(employeesData);
-        }
-      };
       await loadEmployees();
     } catch (err) {
       console.error('Delete error:', err);
@@ -179,7 +215,7 @@ export default function Employees() {
             id="filterBranch"
             name="filterBranch"
             value={selectedBranch}
-            onChange={(e) => setSelectedBranch(e.target.value)}
+            onChange={(e) => { setSelectedBranch(e.target.value); setPagination(prev => ({ ...prev, page: 1 })); }}
             className="input pl-10 pr-8 appearance-none bg-white min-w-[180px]"
           >
             <option value="all">All Branches</option>
@@ -212,14 +248,14 @@ export default function Employees() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {filteredEmployees.length === 0 ? (
+              {paginatedEmployees.length === 0 ? (
                 <tr>
                   <td colSpan="7" className="px-4 py-8 text-center text-gray-500">
                     No employees found{selectedBranch !== 'all' ? ' for this branch' : ''}. Click "Add Employee" to create one.
                   </td>
                 </tr>
               ) : (
-                filteredEmployees.map((emp) => (
+                paginatedEmployees.map((emp) => (
                   <tr key={emp.id || emp._id} className="hover:bg-gray-50">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
@@ -260,6 +296,52 @@ export default function Employees() {
             </tbody>
           </table>
         </div>
+
+        {filteredEmployees.length > ITEMS_PER_PAGE && (
+          <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200">
+            <div className="text-sm text-gray-500">
+              Showing <span className="font-medium">{(pagination.page - 1) * ITEMS_PER_PAGE + 1}</span> to{' '}
+              <span className="font-medium">{Math.min(pagination.page * ITEMS_PER_PAGE, filteredEmployees.length)}</span> of{' '}
+              <span className="font-medium">{filteredEmployees.length}</span> results
+            </div>
+            
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => { setPagination(prev => ({ ...prev, page: prev.page - 1 })); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                disabled={pagination.page === 1}
+                className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+              
+              {getPageNumbers().map((page, idx) => (
+                page === '...' ? (
+                  <span key={`ellipsis-${idx}`} className="px-2 text-gray-400">...</span>
+                ) : (
+                  <button
+                    key={page}
+                    onClick={() => { setPagination(prev => ({ ...prev, page })); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                    className={`min-w-[36px] h-9 flex items-center justify-center rounded-lg text-sm font-medium transition-colors ${
+                      pagination.page === page
+                        ? 'bg-primary-600 text-white'
+                        : 'text-gray-600 hover:bg-gray-100'
+                    }`}
+                  >
+                    {page}
+                  </button>
+                )
+              ))}
+              
+              <button
+                onClick={() => { setPagination(prev => ({ ...prev, page: prev.page + 1 })); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                disabled={pagination.page === pagination.totalPages}
+                className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <ChevronRight className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {showModal && (
@@ -276,7 +358,6 @@ export default function Employees() {
                   id="empName"
                   name="name"
                   type="text"
-                  autoComplete="name"
                   value={formData.name}
                   onChange={(e) => setFormData({...formData, name: e.target.value})}
                   className="input"
@@ -290,7 +371,6 @@ export default function Employees() {
                   <select
                     id="empRole"
                     name="role"
-                    autoComplete="off"
                     value={formData.role}
                     onChange={(e) => setFormData({...formData, role: e.target.value})}
                     className="input"
@@ -308,7 +388,6 @@ export default function Employees() {
                     id="empPhone"
                     name="phone"
                     type="tel"
-                    autoComplete="tel"
                     value={formData.phone}
                     onChange={(e) => setFormData({...formData, phone: e.target.value})}
                     className="input"
@@ -326,7 +405,6 @@ export default function Employees() {
                   id="empPassword"
                   name="password"
                   type="password"
-                  autoComplete={editingEmployee ? 'new-password' : 'new-password'}
                   value={formData.password}
                   onChange={(e) => setFormData({...formData, password: e.target.value})}
                   className="input"
@@ -341,7 +419,6 @@ export default function Employees() {
                   <select
                     id="empBranch"
                     name="branch_id"
-                    autoComplete="off"
                     value={formData.branch_id}
                     onChange={(e) => setFormData({...formData, branch_id: e.target.value})}
                     className="input"
@@ -358,9 +435,8 @@ export default function Employees() {
                     id="empSalary"
                     name="salary"
                     type="number"
-                    autoComplete="off"
                     value={formData.salary}
-                    onChange={(e) => setFormData({...formData, salary: Number(e.target.value)})}
+                    onChange={(e) => setFormData({...formData, salary: e.target.value})}
                     className="input"
                   />
                 </div>
@@ -371,7 +447,6 @@ export default function Employees() {
                 <select
                   id="empStatus"
                   name="status"
-                  autoComplete="off"
                   value={formData.status}
                   onChange={(e) => setFormData({...formData, status: e.target.value})}
                   className="input"

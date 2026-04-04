@@ -3,16 +3,21 @@ const { successResponse, errorResponse } = require('../utils/responseHelper');
 
 const getAllExpenses = async (req, res, next) => {
   try {
-    const { branch_id, category, date, start_date, end_date, month, year } = req.query;
-    let expenses = await Expense.findAll({ branch_id, category, date, start_date, end_date, month, year });
+    const { branch_id, employee_id, category_id, payment_mode, date, start_date, end_date } = req.query;
+    let expenses = await Expense.findAll({ branch_id, employee_id, category_id, payment_mode, date, start_date, end_date });
     expenses = expenses.map(exp => {
       if (exp.branch_id && typeof exp.branch_id === 'object') {
         exp.branch_name = exp.branch_id.name;
         exp.branch_id = exp.branch_id._id || exp.branch_id.id;
       }
-      if (exp.created_by && typeof exp.created_by === 'object') {
-        exp.created_by_name = exp.created_by.name;
-        exp.created_by = exp.created_by._id || exp.created_by.id;
+      if (exp.employee_id && typeof exp.employee_id === 'object') {
+        exp.employee_name = exp.employee_id.name;
+        exp.employee_phone = exp.employee_id.phone;
+        exp.employee_id = exp.employee_id._id || exp.employee_id.id;
+      }
+      if (exp.category_id && typeof exp.category_id === 'object') {
+        exp.category_name = exp.category_id.name;
+        exp.category_id = exp.category_id._id || exp.category_id.id;
       }
       return exp;
     });
@@ -28,6 +33,18 @@ const getExpense = async (req, res, next) => {
     if (!expense) {
       return errorResponse(res, 'Expense not found', 404);
     }
+    if (expense.branch_id && typeof expense.branch_id === 'object') {
+      expense.branch_name = expense.branch_id.name;
+      expense.branch_id = expense.branch_id._id || expense.branch_id.id;
+    }
+    if (expense.employee_id && typeof expense.employee_id === 'object') {
+      expense.employee_name = expense.employee_id.name;
+      expense.employee_id = expense.employee_id._id || expense.employee_id.id;
+    }
+    if (expense.category_id && typeof expense.category_id === 'object') {
+      expense.category_name = expense.category_id.name;
+      expense.category_id = expense.category_id._id || expense.category_id.id;
+    }
     return successResponse(res, expense);
   } catch (error) {
     next(error);
@@ -39,25 +56,43 @@ const createExpense = async (req, res, next) => {
     console.log('📥 CREATE EXPENSE - Request body:', req.body);
     console.log('📥 CREATE EXPENSE - User:', req.user?.id, req.user?.role);
     
-    const { branch_id, title, amount, category, receipt_image } = req.body;
+    const { title, amount, payment_mode, notes } = req.body;
     
-    // Validate required fields
-    if (!branch_id) {
-      console.error('❌ branch_id is missing or empty');
-      return errorResponse(res, 'Branch ID is required', 400);
+    const employeeId = req.user._id || req.user.id;
+    let branchId = req.user.branch_id;
+    
+    if (typeof branchId === 'object' && branchId !== null) {
+      branchId = branchId._id || branchId.id;
     }
-    if (!title) {
-      console.error('❌ title is missing or empty');
+
+    if (!branchId) {
+      console.error('❌ branch_id is missing');
+      return errorResponse(res, 'Branch ID missing. Please contact admin.', 400);
+    }
+    if (!title || !title.trim()) {
+      console.error('❌ title is missing');
       return errorResponse(res, 'Title is required', 400);
     }
-    if (amount === undefined || amount === null || amount === '') {
-      console.error('❌ amount is missing or empty');
-      return errorResponse(res, 'Amount is required', 400);
+    if (!amount || parseFloat(amount) <= 0) {
+      console.error('❌ invalid amount');
+      return errorResponse(res, 'Valid amount is required', 400);
+    }
+    if (!payment_mode || !['CASH', 'ONLINE'].includes(payment_mode)) {
+      console.error('❌ invalid payment_mode');
+      return errorResponse(res, 'Payment mode must be CASH or ONLINE', 400);
     }
     
-    const expense = await Expense.create({ branch_id, title, amount, category, receipt_image, created_by: req.user.id });
-    console.log('✅ Expense created:', expense);
-    return successResponse(res, expense, 'Expense created successfully', 201);
+    const expense = await Expense.create({
+      branch_id: branchId,
+      employee_id: employeeId,
+      title: title.trim(),
+      amount: parseFloat(amount),
+      payment_mode,
+      notes: notes?.trim() || ''
+    });
+    
+    console.log('✅ Expense created:', expense._id);
+    return successResponse(res, expense, 'Expense recorded successfully', 201);
   } catch (error) {
     console.error('❌ CREATE EXPENSE ERROR:', error);
     next(error);

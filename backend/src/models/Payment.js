@@ -83,6 +83,21 @@ class Payment {
 
     return { daily: [], summary };
   }
+
+  static async findById(id) {
+    if (!mongoose.Types.ObjectId.isValid(id)) return null;
+    return PaymentModel.findById(id).lean();
+  }
+
+  static async findByIdAndDelete(id) {
+    if (!mongoose.Types.ObjectId.isValid(id)) return null;
+    return PaymentModel.findByIdAndDelete(id);
+  }
+
+  static async findByIdAndUpdate(id, data, options) {
+    if (!mongoose.Types.ObjectId.isValid(id)) return null;
+    return PaymentModel.findByIdAndUpdate(id, data, options).lean();
+  }
 }
 
 module.exports = Payment;

@@ -2,9 +2,10 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { attendanceAPI, branchesAPI, employeesAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { formatTime } from '../utils/helpers';
-import { Clock, LogIn, LogOut, Calendar, Loader2, User, Building2, Users, Download } from 'lucide-react';
+import { Clock, LogIn, LogOut, Calendar, Loader2, User, Building2, Users, Download, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const getDaysInMonth = (year, month) => new Date(year, month, 0).getDate();
+const ITEMS_PER_PAGE = 10;
 
 const formatHours = (decimalHours) => {
   if (!decimalHours || decimalHours === 0) return '0h';
@@ -35,6 +36,7 @@ export default function Attendance() {
   const [viewMode, setViewMode] = useState('summary');
   
   const [stats, setStats] = useState({ totalPresent: 0, totalAbsent: 0, totalHours: 0 });
+  const [pagination, setPagination] = useState({ summaryPage: 1, detailsPage: 1, total: 0 });
 
   const selectedBranchRef = useRef(selectedBranch);
 
@@ -88,6 +90,9 @@ export default function Attendance() {
     };
 
     loadAll();
+
+    const interval = setInterval(loadAttendance, 5000);
+    return () => clearInterval(interval);
   }, []);
 
   const filteredAttendance = useMemo(() => {
@@ -153,6 +158,46 @@ export default function Attendance() {
     const totalHours = summaryData.reduce((sum, emp) => sum + emp.total_hours, 0);
     setStats({ totalPresent, totalAbsent, totalHours });
   }, [summaryData]);
+
+  const paginatedSummary = summaryData.slice((pagination.summaryPage - 1) * ITEMS_PER_PAGE, pagination.summaryPage * ITEMS_PER_PAGE);
+  const paginatedDetails = filteredAttendance.slice((pagination.detailsPage - 1) * ITEMS_PER_PAGE, pagination.detailsPage * ITEMS_PER_PAGE);
+
+  useEffect(() => {
+    const summaryTotal = Math.ceil(summaryData.length / ITEMS_PER_PAGE);
+    const detailsTotal = Math.ceil(filteredAttendance.length / ITEMS_PER_PAGE);
+    setPagination(prev => ({
+      ...prev,
+      summaryTotal,
+      detailsTotal
+    }));
+  }, [summaryData, filteredAttendance]);
+
+  const handlePageChange = (type, newPage) => {
+    const totalPages = type === 'summary' ? Math.ceil(summaryData.length / ITEMS_PER_PAGE) : Math.ceil(filteredAttendance.length / ITEMS_PER_PAGE);
+    if (newPage >= 1 && newPage <= totalPages) {
+      setPagination(prev => ({ ...prev, [`${type}Page`]: newPage }));
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  const getPageNumbers = (type) => {
+    const pages = [];
+    const total = type === 'summary' ? Math.ceil(summaryData.length / ITEMS_PER_PAGE) : Math.ceil(filteredAttendance.length / ITEMS_PER_PAGE);
+    const current = type === 'summary' ? pagination.summaryPage : pagination.detailsPage;
+    
+    if (total <= 5) {
+      for (let i = 1; i <= total; i++) pages.push(i);
+    } else {
+      if (current <= 3) {
+        pages.push(1, 2, 3, 4, '...', total);
+      } else if (current >= total - 2) {
+        pages.push(1, '...', total - 3, total - 2, total - 1, total);
+      } else {
+        pages.push(1, '...', current - 1, current, current + 1, '...', total);
+      }
+    }
+    return pages;
+  };
 
   const exportToCSV = () => {
     const headers = ['Employee Name', 'Branch', 'Role', 'Present Days', 'Absent Days', 'Total Hours'];
@@ -376,14 +421,14 @@ export default function Attendance() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {summaryData.length === 0 ? (
+                {paginatedSummary.length === 0 ? (
                   <tr>
                     <td colSpan="5" className="px-4 py-8 text-center text-gray-500">
                       No attendance records found for {dateLabel}
                     </td>
                   </tr>
                 ) : (
-                  summaryData.map((emp) => (
+                  paginatedSummary.map((emp) => (
                     <tr key={emp.employee_id} className="hover:bg-gray-50">
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
@@ -420,6 +465,52 @@ export default function Attendance() {
               </tbody>
             </table>
           </div>
+
+          {summaryData.length > ITEMS_PER_PAGE && (
+            <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200">
+              <div className="text-sm text-gray-500">
+                Showing <span className="font-medium">{(pagination.summaryPage - 1) * ITEMS_PER_PAGE + 1}</span> to{' '}
+                <span className="font-medium">{Math.min(pagination.summaryPage * ITEMS_PER_PAGE, summaryData.length)}</span> of{' '}
+                <span className="font-medium">{summaryData.length}</span> results
+              </div>
+              
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => handlePageChange('summary', pagination.summaryPage - 1)}
+                  disabled={pagination.summaryPage === 1}
+                  className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+                
+                {getPageNumbers('summary').map((page, idx) => (
+                  page === '...' ? (
+                    <span key={`ellipsis-${idx}`} className="px-2 text-gray-400">...</span>
+                  ) : (
+                    <button
+                      key={page}
+                      onClick={() => handlePageChange('summary', page)}
+                      className={`min-w-[36px] h-9 flex items-center justify-center rounded-lg text-sm font-medium transition-colors ${
+                        pagination.summaryPage === page
+                          ? 'bg-primary-600 text-white'
+                          : 'text-gray-600 hover:bg-gray-100'
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  )
+                ))}
+                
+                <button
+                  onClick={() => handlePageChange('summary', pagination.summaryPage + 1)}
+                  disabled={pagination.summaryPage === Math.ceil(summaryData.length / ITEMS_PER_PAGE)}
+                  className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       ) : (
         <div className="card">
@@ -438,14 +529,14 @@ export default function Attendance() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {filteredAttendance.length === 0 ? (
+                {paginatedDetails.length === 0 ? (
                   <tr>
                     <td colSpan="6" className="px-4 py-8 text-center text-gray-500">
                       No attendance records found for {dateLabel}
                     </td>
                   </tr>
                 ) : (
-                  filteredAttendance.map((record) => (
+                  paginatedDetails.map((record) => (
                     <tr key={record.id || record._id} className="hover:bg-gray-50">
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
@@ -476,6 +567,52 @@ export default function Attendance() {
               </tbody>
             </table>
           </div>
+
+          {filteredAttendance.length > ITEMS_PER_PAGE && (
+            <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200">
+              <div className="text-sm text-gray-500">
+                Showing <span className="font-medium">{(pagination.detailsPage - 1) * ITEMS_PER_PAGE + 1}</span> to{' '}
+                <span className="font-medium">{Math.min(pagination.detailsPage * ITEMS_PER_PAGE, filteredAttendance.length)}</span> of{' '}
+                <span className="font-medium">{filteredAttendance.length}</span> results
+              </div>
+              
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => handlePageChange('details', pagination.detailsPage - 1)}
+                  disabled={pagination.detailsPage === 1}
+                  className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+                
+                {getPageNumbers('details').map((page, idx) => (
+                  page === '...' ? (
+                    <span key={`ellipsis-${idx}`} className="px-2 text-gray-400">...</span>
+                  ) : (
+                    <button
+                      key={page}
+                      onClick={() => handlePageChange('details', page)}
+                      className={`min-w-[36px] h-9 flex items-center justify-center rounded-lg text-sm font-medium transition-colors ${
+                        pagination.detailsPage === page
+                          ? 'bg-primary-600 text-white'
+                          : 'text-gray-600 hover:bg-gray-100'
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  )
+                ))}
+                
+                <button
+                  onClick={() => handlePageChange('details', pagination.detailsPage + 1)}
+                  disabled={pagination.detailsPage === Math.ceil(filteredAttendance.length / ITEMS_PER_PAGE)}
+                  className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

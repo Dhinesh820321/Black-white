@@ -100,6 +100,8 @@ router.get('/monthly-revenue', branchAccess, invoiceController.getMonthlyRevenue
  */
 router.get('/:id', invoiceController.getInvoice);
 
+router.put('/:id', invoiceController.updateInvoice);
+
 /**
  * @swagger
  * /api/invoices:

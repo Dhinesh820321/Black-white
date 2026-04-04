@@ -62,6 +62,24 @@ const seedData = async () => {
       console.log('🌱 Seeded: Employee (phone: 8888888888, password: employee123)');
     }
 
+    // Seed expense categories
+    const ExpenseCategory = mongoose.model('ExpenseCategory');
+    const categoryCount = await ExpenseCategory.countDocuments();
+    if (categoryCount === 0) {
+      const defaultCategories = [
+        { name: 'Rent', description: 'Office/space rent expenses' },
+        { name: 'Electricity', description: 'Electricity and utility bills' },
+        { name: 'Supplies', description: 'Office and salon supplies' },
+        { name: 'Equipment', description: 'Equipment purchase and repairs' },
+        { name: 'Cleaning', description: 'Cleaning and hygiene supplies' },
+        { name: 'Marketing', description: 'Advertising and marketing expenses' },
+        { name: 'Misc', description: 'Miscellaneous expenses' }
+      ];
+      
+      await ExpenseCategory.insertMany(defaultCategories);
+      console.log('🌱 Seeded: Expense Categories');
+    }
+
   } catch (error) {
     console.error('❌ Seeding Error:', error);
   }

@@ -1,24 +1,25 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { expensesAPI, branchesAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { formatCurrency, formatDate } from '../utils/helpers';
-import { Plus, Edit, Trash2, Loader2 } from 'lucide-react';
+import { Loader2, FileText, ChevronLeft, ChevronRight, Edit, Trash2 } from 'lucide-react';
 
 const DEFAULT_EXPENSES = [];
 const DEFAULT_BRANCHES = [];
-const DEFAULT_FORM_DATA = { branch_id: '', title: '', amount: '', category: 'misc' };
+const ITEMS_PER_PAGE = 10;
 
 export default function Expenses() {
   const { user } = useAuth();
   const [expenses, setExpenses] = useState(DEFAULT_EXPENSES);
   const [branches, setBranches] = useState(DEFAULT_BRANCHES);
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [showModal, setShowModal] = useState(false);
-  const [editingExpense, setEditingExpense] = useState(null);
-  const [filters, setFilters] = useState({ date: '', branch_id: '' });
-  const [formData, setFormData] = useState({ ...DEFAULT_FORM_DATA, branch_id: user?.branch_id || '' });
+  const [filters, setFilters] = useState({ date: '', branch_id: '', payment_mode: '' });
+  const [summary, setSummary] = useState({ cashExpenses: { total: 0, count: 0 }, onlineExpenses: { total: 0, count: 0 }, total: 0 });
+  const [pagination, setPagination] = useState({ page: 1, total: 0, totalPages: 0 });
   const [error, setError] = useState(null);
+  const [editingExpense, setEditingExpense] = useState(null);
+  const [deleteId, setDeleteId] = useState(null);
+  const isModalOpen = useRef(false);
 
   const loadBranches = useCallback(async () => {
     try {
@@ -31,14 +32,30 @@ export default function Expenses() {
     }
   }, []);
 
-  const loadExpenses = useCallback(async () => {
+  const loadExpenses = useCallback(async (page = 1) => {
     try {
       setLoading(true);
       setError(null);
       const params = { ...filters };
-      const expRes = await expensesAPI.getAll(params);
+      Object.keys(params).forEach(key => !params[key] && delete params[key]);
+      
+      const [expRes, summaryRes] = await Promise.all([
+        expensesAPI.getAll(params),
+        expensesAPI.getSummary({ branch_id: filters.branch_id, start_date: filters.date, end_date: filters.date })
+      ]);
+      
       if (expRes?.data?.success && Array.isArray(expRes.data.data)) {
         setExpenses(expRes.data.data);
+        const total = expRes.data.data.length;
+        setPagination(prev => ({
+          ...prev,
+          page,
+          total,
+          totalPages: Math.max(1, Math.ceil(total / ITEMS_PER_PAGE))
+        }));
+      }
+      if (summaryRes?.data?.success) {
+        setSummary(summaryRes.data.data);
       }
     } catch (err) {
       console.error('Failed to load expenses:', err);
@@ -50,70 +67,58 @@ export default function Expenses() {
 
   useEffect(() => {
     const loadData = async () => {
-      await Promise.all([loadExpenses(), loadBranches()]);
+      await loadBranches();
+      loadExpenses(1);
     };
     loadData();
-  }, [loadExpenses, loadBranches]);
+  }, []);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setSubmitting(true);
-    setError(null);
+  useEffect(() => {
+    isModalOpen.current = false;
+  }, []);
 
-    try {
-      if (editingExpense) {
-        await expensesAPI.update(editingExpense.id, formData);
-      } else {
-        await expensesAPI.create(formData);
-      }
-      
-      await loadExpenses();
-      setShowModal(false);
-      resetForm();
-    } catch (err) {
-      console.error('Submit error:', err);
-      setError(err.response?.data?.message || 'Operation failed. Please try again.');
-    } finally {
-      setSubmitting(false);
+  useEffect(() => {
+    if (!isModalOpen.current) {
+      const timer = setTimeout(() => loadExpenses(1), 100);
+      return () => clearTimeout(timer);
+    }
+  }, [filters, loadExpenses]);
+
+  const handleFilterChange = (key, value) => {
+    setFilters(prev => ({ ...prev, [key]: value }));
+    setPagination(prev => ({ ...prev, page: 1 }));
+  };
+
+  const handlePageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= pagination.totalPages) {
+      setPagination(prev => ({ ...prev, page: newPage }));
+      loadExpenses(newPage);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
-  const handleEdit = (expense) => {
-    setEditingExpense(expense);
-    setFormData({
-      branch_id: expense.branch_id,
-      title: expense.title,
-      amount: expense.amount,
-      category: expense.category
-    });
-    setError(null);
-    setShowModal(true);
-  };
+  const paginatedExpenses = expenses.slice((pagination.page - 1) * ITEMS_PER_PAGE, pagination.page * ITEMS_PER_PAGE);
 
-  const handleDelete = async (id) => {
-    if (!confirm('Are you sure you want to delete this expense?')) return;
+  const getPageNumbers = () => {
+    const pages = [];
+    const total = pagination.totalPages;
+    const current = pagination.page;
     
-    try {
-      await expensesAPI.delete(id);
-      await loadExpenses();
-    } catch (err) {
-      console.error('Delete error:', err);
-      alert(err.response?.data?.message || 'Failed to delete expense');
+    if (total <= 5) {
+      for (let i = 1; i <= total; i++) pages.push(i);
+    } else {
+      if (current <= 3) {
+        pages.push(1, 2, 3, 4, '...', total);
+      } else if (current >= total - 2) {
+        pages.push(1, '...', total - 3, total - 2, total - 1, total);
+      } else {
+        pages.push(1, '...', current - 1, current, current + 1, '...', total);
+      }
     }
+    return pages;
   };
 
-  const resetForm = () => {
-    setEditingExpense(null);
-    setFormData({ ...DEFAULT_FORM_DATA, branch_id: user?.branch_id || '' });
-    setError(null);
-  };
-
-  const handleCloseModal = () => {
-    setShowModal(false);
-    resetForm();
-  };
-
-  if (loading) {
+  if (loading && expenses.length === 0) {
     return (
       <div className="flex items-center justify-center p-8">
         <Loader2 className="w-8 h-8 animate-spin text-primary-600" />
@@ -127,14 +132,27 @@ export default function Expenses() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Expenses</h1>
-          <p className="text-gray-600">Track branch expenses</p>
+          <p className="text-gray-600">View employee-recorded expenses</p>
         </div>
-        {(user?.role === 'admin' || user?.role === 'manager') && (
-          <button onClick={() => { resetForm(); setShowModal(true); }} className="btn-primary flex items-center gap-2">
-            <Plus className="w-4 h-4" /> Add Expense
-          </button>
-        )}
       </div>
+
+      {/* <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="card p-4 bg-green-50 border-green-100">
+          <p className="text-sm text-green-600 font-medium">Cash Expenses</p>
+          <p className="text-2xl font-bold text-green-700">{formatCurrency(summary.cashExpenses?.total || 0)}</p>
+          <p className="text-xs text-green-500">{summary.cashExpenses?.count || 0} transactions</p>
+        </div>
+        <div className="card p-4 bg-blue-50 border-blue-100">
+          <p className="text-sm text-blue-600 font-medium">Online Expenses</p>
+          <p className="text-2xl font-bold text-blue-700">{formatCurrency(summary.onlineExpenses?.total || 0)}</p>
+          <p className="text-xs text-blue-500">{summary.onlineExpenses?.count || 0} transactions</p>
+        </div>
+        <div className="card p-4 bg-gray-50 border-gray-100">
+          <p className="text-sm text-gray-600 font-medium">Total Expenses</p>
+          <p className="text-2xl font-bold text-gray-700">{formatCurrency(summary.total || 0)}</p>
+          <p className="text-xs text-gray-500">{(summary.cashExpenses?.count || 0) + (summary.onlineExpenses?.count || 0)} transactions</p>
+        </div>
+      </div> */}
 
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
@@ -145,24 +163,24 @@ export default function Expenses() {
       <div className="card">
         <div className="flex flex-col sm:flex-row gap-4 mb-4">
           <div className="flex flex-col gap-1">
-            <label htmlFor="filterDate" className="text-xs font-medium text-gray-500">Filter Date</label>
+            <label htmlFor="filterDate" className="text-xs font-medium text-gray-500">Date</label>
             <input
               id="filterDate"
               name="date"
               type="date"
               value={filters.date}
-              onChange={(e) => setFilters({...filters, date: e.target.value})}
+              onChange={(e) => handleFilterChange('date', e.target.value)}
               className="input w-auto"
             />
           </div>
           {user?.role === 'admin' && (
             <div className="flex flex-col gap-1">
-              <label htmlFor="filterBranch" className="text-xs font-medium text-gray-500">Filter Branch</label>
+              <label htmlFor="filterBranch" className="text-xs font-medium text-gray-500">Branch</label>
               <select
                 id="filterBranch"
                 name="branch_id"
                 value={filters.branch_id}
-                onChange={(e) => setFilters({...filters, branch_id: e.target.value})}
+                onChange={(e) => handleFilterChange('branch_id', e.target.value)}
                 className="input w-auto"
               >
                 <option value="">All Branches</option>
@@ -172,6 +190,28 @@ export default function Expenses() {
               </select>
             </div>
           )}
+          <div className="flex flex-col gap-1">
+            <label htmlFor="filterPayment" className="text-xs font-medium text-gray-500">Payment Mode</label>
+            <select
+              id="filterPayment"
+              name="payment_mode"
+              value={filters.payment_mode}
+              onChange={(e) => handleFilterChange('payment_mode', e.target.value)}
+              className="input w-auto"
+            >
+              <option value="">All</option>
+              <option value="CASH">Cash</option>
+              <option value="ONLINE">Online</option>
+            </select>
+          </div>
+          <div className="flex flex-col gap-1 self-end">
+            <button
+              onClick={() => setFilters({ date: '', branch_id: '', payment_mode: '' })}
+              className="btn-secondary text-sm py-2"
+            >
+              Clear Filters
+            </button>
+          </div>
         </div>
 
         <div className="overflow-x-auto">
@@ -179,162 +219,180 @@ export default function Expenses() {
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Date</th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Title</th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Employee</th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Branch</th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Category</th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Created By</th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Title</th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Payment</th>
                 <th className="px-4 py-3 text-right text-sm font-medium text-gray-600">Amount</th>
-                {(user?.role === 'admin' || user?.role === 'manager') && (
-                  <th className="px-4 py-3 text-right text-sm font-medium text-gray-600">Actions</th>
-                )}
+                <th className="px-4 py-3 text-right text-sm font-medium text-gray-600">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
               {expenses.length === 0 ? (
                 <tr>
                   <td colSpan="7" className="px-4 py-8 text-center text-gray-500">
-                    No expenses found.
+                    <div className="flex flex-col items-center gap-2">
+                      <FileText className="w-12 h-12 text-gray-300" />
+                      <p>No expenses found.</p>
+                      <p className="text-sm">Expenses recorded by employees will appear here.</p>
+                    </div>
                   </td>
                 </tr>
               ) : (
-                expenses.map((expense) => (
-                  <tr key={expense.id} className="hover:bg-gray-50">
+                paginatedExpenses.map((expense) => (
+                  <tr key={expense.id || expense._id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 text-sm text-gray-600">{formatDate(expense.created_at)}</td>
-                    <td className="px-4 py-3 text-sm font-medium text-gray-900">{expense.title}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{expense.branch_name}</td>
+                    <td className="px-4 py-3 text-sm font-medium text-gray-900">{expense.employee_name || '-'}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">{expense.branch_name || '-'}</td>
+                    <td className="px-4 py-3 text-sm text-gray-900">{expense.title}</td>
                     <td className="px-4 py-3">
-                      <span className="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800 capitalize">
-                        {expense.category}
+                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                        expense.payment_mode === 'CASH' 
+                          ? 'bg-green-100 text-green-800' 
+                          : 'bg-blue-100 text-blue-800'
+                      }`}>
+                        {expense.payment_mode}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{expense.created_by_name || '-'}</td>
                     <td className="px-4 py-3 text-right text-sm font-medium text-gray-900">{formatCurrency(expense.amount)}</td>
-                    {(user?.role === 'admin' || user?.role === 'manager') && (
-                      <td className="px-4 py-3 text-right">
-                        <button onClick={() => handleEdit(expense)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg">
-                          <Edit className="w-4 h-4" />
-                        </button>
-                        {user?.role === 'admin' && (
-                          <button onClick={() => handleDelete(expense.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg">
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        )}
-                      </td>
-                    )}
+                    <td className="px-4 py-3 text-right">
+                      <button 
+                        onClick={() => setEditingExpense(expense)}
+                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg inline-flex"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </button>
+                      <button 
+                        onClick={() => setDeleteId(expense._id || expense.id)}
+                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg inline-flex"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </td>
                   </tr>
                 ))
               )}
             </tbody>
           </table>
         </div>
+
+        {expenses.length > ITEMS_PER_PAGE && (
+          <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200">
+            <div className="text-sm text-gray-500">
+              Showing <span className="font-medium">{(pagination.page - 1) * ITEMS_PER_PAGE + 1}</span> to{' '}
+              <span className="font-medium">{Math.min(pagination.page * ITEMS_PER_PAGE, expenses.length)}</span> of{' '}
+              <span className="font-medium">{expenses.length}</span> results
+            </div>
+            
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => handlePageChange(pagination.page - 1)}
+                disabled={pagination.page === 1}
+                className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+              
+              {getPageNumbers().map((page, idx) => (
+                page === '...' ? (
+                  <span key={`ellipsis-${idx}`} className="px-2 text-gray-400">...</span>
+                ) : (
+                  <button
+                    key={page}
+                    onClick={() => handlePageChange(page)}
+                    className={`min-w-[36px] h-9 flex items-center justify-center rounded-lg text-sm font-medium transition-colors ${
+                      pagination.page === page
+                        ? 'bg-primary-600 text-white'
+                        : 'text-gray-600 hover:bg-gray-100'
+                    }`}
+                  >
+                    {page}
+                  </button>
+                )
+              ))}
+              
+              <button
+                onClick={() => handlePageChange(pagination.page + 1)}
+                disabled={pagination.page === pagination.totalPages}
+                className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <ChevronRight className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
-      {showModal && (
+      {editingExpense && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl p-6 w-full max-w-md">
-            <h2 className="text-xl font-semibold mb-4">
-              {editingExpense ? 'Edit Expense' : 'Add New Expense'}
-            </h2>
-            
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <h2 className="text-xl font-semibold mb-4">Edit Expense</h2>
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              try {
+                const formData = new FormData(e.target);
+                await expensesAPI.update(editingExpense._id || editingExpense.id, {
+                  title: formData.get('title'),
+                  amount: parseFloat(formData.get('amount')),
+                  payment_mode: formData.get('payment_mode'),
+                  notes: formData.get('notes') || ''
+                });
+                setEditingExpense(null);
+                loadExpenses(pagination.page);
+              } catch (err) {
+                alert(err.response?.data?.message || 'Failed to update expense');
+              }
+            }} className="space-y-4">
               <div>
-                <label htmlFor="expBranch" className="label">Branch *</label>
-                <select
-                  id="expBranch"
-                  name="branch_id"
-                  autoComplete="off"
-                  value={formData.branch_id}
-                  onChange={(e) => setFormData({...formData, branch_id: e.target.value})}
-                  className="input"
-                  required
-                >
-                  <option value="">Select Branch</option>
-                  {branches.map(b => (
-                    <option key={b.id} value={b.id}>{b.name}</option>
-                  ))}
+                <label htmlFor="editTitle" className="label">Title</label>
+                <input id="editTitle" name="title" type="text" defaultValue={editingExpense.title} className="input" required />
+              </div>
+              <div>
+                <label htmlFor="editAmount" className="label">Amount</label>
+                <input id="editAmount" name="amount" type="number" step="0.01" defaultValue={editingExpense.amount} className="input" required />
+              </div>
+              <div>
+                <label htmlFor="editPayment" className="label">Payment Mode</label>
+                <select id="editPayment" name="payment_mode" defaultValue={editingExpense.payment_mode} className="input">
+                  <option value="CASH">CASH</option>
+                  <option value="ONLINE">ONLINE</option>
                 </select>
               </div>
-              
               <div>
-                <label htmlFor="expTitle" className="label">Title *</label>
-                <input
-                  id="expTitle"
-                  name="title"
-                  type="text"
-                  autoComplete="off"
-                  value={formData.title}
-                  onChange={(e) => setFormData({...formData, title: e.target.value})}
-                  className="input"
-                  required
-                />
+                <label htmlFor="editNotes" className="label">Notes</label>
+                <textarea id="editNotes" name="notes" defaultValue={editingExpense.notes} className="input" rows="3" />
               </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label htmlFor="expAmount" className="label">Amount (₹) *</label>
-                  <input
-                    id="expAmount"
-                    name="amount"
-                    type="number"
-                    autoComplete="off"
-                    value={formData.amount}
-                    onChange={(e) => setFormData({...formData, amount: e.target.value})}
-                    className="input"
-                    required
-                    min="0"
-                    step="0.01"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="expCategory" className="label">Category</label>
-                  <select
-                    id="expCategory"
-                    name="category"
-                    autoComplete="off"
-                    value={formData.category}
-                    onChange={(e) => setFormData({...formData, category: e.target.value})}
-                    className="input"
-                  >
-                    <option value="rent">Rent</option>
-                    <option value="salary">Salary</option>
-                    <option value="electricity">Electricity</option>
-                    <option value="supplies">Supplies</option>
-                    <option value="misc">Misc</option>
-                  </select>
-                </div>
-              </div>
-
-              {error && (
-                <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-lg text-sm">
-                  {error}
-                </div>
-              )}
-              
-              <div className="flex gap-3 pt-4">
-                <button
-                  type="button"
-                  onClick={handleCloseModal}
-                  className="flex-1 btn-secondary"
-                  disabled={submitting}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 btn-primary"
-                  disabled={submitting}
-                >
-                  {submitting ? (
-                    <span className="flex items-center justify-center">
-                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                      Saving...
-                    </span>
-                  ) : (
-                    editingExpense ? 'Update' : 'Create'
-                  )}
-                </button>
+              <div className="flex gap-3 pt-2">
+                <button type="button" onClick={() => setEditingExpense(null)} className="flex-1 btn-secondary">Cancel</button>
+                <button type="submit" className="flex-1 btn-primary">Update</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {deleteId && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm">
+            <h2 className="text-xl font-semibold mb-2">Delete Expense?</h2>
+            <p className="text-gray-600 mb-4">This action cannot be undone.</p>
+            <div className="flex gap-3">
+              <button onClick={() => setDeleteId(null)} className="flex-1 btn-secondary">Cancel</button>
+              <button 
+                onClick={async () => {
+                  try {
+                    await expensesAPI.delete(deleteId);
+                    setDeleteId(null);
+                    loadExpenses(pagination.page);
+                  } catch (err) {
+                    alert(err.response?.data?.message || 'Failed to delete expense');
+                  }
+                }} 
+                className="flex-1 bg-red-600 text-white py-2 rounded-lg hover:bg-red-700"
+              >
+                Delete
+              </button>
+            </div>
           </div>
         </div>
       )}

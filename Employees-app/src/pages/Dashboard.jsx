@@ -1,7 +1,7 @@
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
 import { NavLink } from 'react-router-dom';
-import { ClipboardCheck, Receipt, History, User, Banknote, Sparkles, TrendingUp } from 'lucide-react';
+import { ClipboardCheck, Receipt, History, User, Banknote, Sparkles, TrendingUp, FileText } from 'lucide-react';
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -48,6 +48,10 @@ const Dashboard = () => {
           <NavLink to="/history" className="card flex flex-col items-center gap-3 p-6 bg-white border border-gray-100 rounded-3xl transition-all active:scale-95 shadow-sm hover:shadow-md">
             <div className="p-4 bg-green-100 rounded-2xl text-green-600"><History size={28} /></div>
             <span className="text-sm font-black text-gray-700 uppercase tracking-tight">Earnings</span>
+          </NavLink>
+          <NavLink to="/expense" className="card flex flex-col items-center gap-3 p-6 bg-white border border-gray-100 rounded-3xl transition-all active:scale-95 shadow-sm hover:shadow-md">
+            <div className="p-4 bg-red-100 rounded-2xl text-red-600"><FileText size={28} /></div>
+            <span className="text-sm font-black text-gray-700 uppercase tracking-tight">Expense</span>
           </NavLink>
           <NavLink to="/profile" className="card flex flex-col items-center gap-3 p-6 bg-white border border-gray-100 rounded-3xl transition-all active:scale-95 shadow-sm hover:shadow-md">
             <div className="p-4 bg-purple-100 rounded-2xl text-purple-600"><User size={28} /></div>

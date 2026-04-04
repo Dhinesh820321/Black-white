@@ -105,4 +105,8 @@ router.post('/', authorize('admin', 'manager'), [
   body('payment_type').isIn(['UPI', 'CASH', 'CARD']).withMessage('Invalid payment type')
 ], validate, paymentController.createPayment);
 
+router.put('/:id', authorize('admin', 'manager'), paymentController.updatePayment);
+
+router.delete('/:id', authorize('admin', 'manager'), paymentController.deletePayment);
+
 module.exports = router;

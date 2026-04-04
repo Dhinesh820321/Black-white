@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { customersAPI } from '../services/api';
 import { formatDate } from '../utils/helpers';
-import { User, AlertTriangle, Search, Phone, Star, Calendar, Loader2, Plus } from 'lucide-react';
+import { User, AlertTriangle, Search, Phone, Star, Calendar, Loader2, Plus, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const DEFAULT_CUSTOMERS = [];
+const ITEMS_PER_PAGE = 10;
 
 export default function Customers() {
   const [customers, setCustomers] = useState(DEFAULT_CUSTOMERS);
@@ -12,6 +13,7 @@ export default function Customers() {
   const [showRetention, setShowRetention] = useState(false);
   const [error, setError] = useState(null);
   const [stats, setStats] = useState({ total: 0, new: 0, atRisk: 0, active: 0 });
+  const [pagination, setPagination] = useState({ page: 1, total: 0, totalPages: 0 });
 
   const loadCustomers = useCallback(async () => {
     try {
@@ -21,6 +23,12 @@ export default function Customers() {
       const res = await customersAPI.getAll(params);
       if (res?.data?.success && Array.isArray(res.data.data)) {
         setCustomers(res.data.data);
+        const total = res.data.data.length;
+        setPagination(prev => ({
+          ...prev,
+          total,
+          totalPages: Math.max(1, Math.ceil(total / ITEMS_PER_PAGE))
+        }));
         const atRisk = res.data.data.filter(c => c.days_since_visit > 45).length;
         setStats({
           total: res.data.data.length,
@@ -45,6 +53,34 @@ export default function Customers() {
     (c.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
     (c.phone || '').includes(searchTerm)
   );
+
+  const handlePageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= pagination.totalPages) {
+      setPagination(prev => ({ ...prev, page: newPage }));
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  const getPageNumbers = () => {
+    const pages = [];
+    const total = pagination.totalPages;
+    const current = pagination.page;
+    
+    if (total <= 5) {
+      for (let i = 1; i <= total; i++) pages.push(i);
+    } else {
+      if (current <= 3) {
+        pages.push(1, 2, 3, 4, '...', total);
+      } else if (current >= total - 2) {
+        pages.push(1, '...', total - 3, total - 2, total - 1, total);
+      } else {
+        pages.push(1, '...', current - 1, current, current + 1, '...', total);
+      }
+    }
+    return pages;
+  };
+
+  const paginatedCustomers = filteredCustomers.slice((pagination.page - 1) * ITEMS_PER_PAGE, pagination.page * ITEMS_PER_PAGE);
 
   if (loading) {
     return (
@@ -111,7 +147,7 @@ export default function Customers() {
               type="text"
               placeholder="Search by name or phone..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => { setSearchTerm(e.target.value); setPagination(prev => ({ ...prev, page: 1 })); }}
               className="input pl-10 w-full"
             />
           </div>
@@ -136,14 +172,15 @@ export default function Customers() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {filteredCustomers.length === 0 ? (
+              {paginatedCustomers.length === 0 ? (
                 <tr>
                   <td colSpan="5" className="px-4 py-8 text-center text-gray-500">
-                    {searchTerm ? 'No customers match your search.' : 'No customers found.'}
+                    <User className="w-12 h-12 text-gray-300 mx-auto mb-2" />
+                    <p>{searchTerm ? 'No customers match your search.' : 'No customers found.'}</p>
                   </td>
                 </tr>
               ) : (
-                filteredCustomers.map((customer) => (
+                paginatedCustomers.map((customer) => (
                   <tr key={customer.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
@@ -200,6 +237,52 @@ export default function Customers() {
             </tbody>
           </table>
         </div>
+
+        {filteredCustomers.length > ITEMS_PER_PAGE && (
+          <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200">
+            <div className="text-sm text-gray-500">
+              Showing <span className="font-medium">{(pagination.page - 1) * ITEMS_PER_PAGE + 1}</span> to{' '}
+              <span className="font-medium">{Math.min(pagination.page * ITEMS_PER_PAGE, filteredCustomers.length)}</span> of{' '}
+              <span className="font-medium">{filteredCustomers.length}</span> results
+            </div>
+            
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => handlePageChange(pagination.page - 1)}
+                disabled={pagination.page === 1}
+                className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+              
+              {getPageNumbers().map((page, idx) => (
+                page === '...' ? (
+                  <span key={`ellipsis-${idx}`} className="px-2 text-gray-400">...</span>
+                ) : (
+                  <button
+                    key={page}
+                    onClick={() => handlePageChange(page)}
+                    className={`min-w-[36px] h-9 flex items-center justify-center rounded-lg text-sm font-medium transition-colors ${
+                      pagination.page === page
+                        ? 'bg-primary-600 text-white'
+                        : 'text-gray-600 hover:bg-gray-100'
+                    }`}
+                  >
+                    {page}
+                  </button>
+                )
+              ))}
+              
+              <button
+                onClick={() => handlePageChange(pagination.page + 1)}
+                disabled={pagination.page === pagination.totalPages}
+                className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <ChevronRight className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

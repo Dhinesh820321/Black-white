@@ -25,15 +25,12 @@ const generateOTP = () => {
 };
 
 const generateToken = (user) => {
-  const branchId = user.branch_id?._id || user.branch_id?.id || user.branch_id;
-  console.log('🔑 Generate Token - user:', user.name, 'role:', user.role, 'branch_id:', user.branch_id, '-> final branch_id:', branchId);
-  
   return jwt.sign(
     {
       id: user._id || user.id,
       role: user.role,
       phone: user.phone,
-      branch_id: branchId
+      branch_id: user.branch_id?._id || user.branch_id?.id || user.branch_id
     },
     process.env.JWT_SECRET,
     { expiresIn: '24h' }

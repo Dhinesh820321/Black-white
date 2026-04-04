@@ -71,4 +71,8 @@ export const invoicesAPI = {
   create: (data) => api.post('/invoices', data),
 };
 
+export const expensesAPI = {
+  create: (data) => api.post('/expenses', data),
+};
+
 export default api;

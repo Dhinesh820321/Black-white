@@ -35,7 +35,7 @@ export default function Layout() {
     <div className="min-h-screen bg-gray-50">
       <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-200 transform transition-transform lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="flex items-center justify-between h-16 px-6 border-b border-gray-200">
-          <h1 className="text-xl font-bold text-primary-600">SalonPro</h1>
+          <h1 className="text-xl font-bold text-primary-600">Best & White</h1>
           <button onClick={() => setSidebarOpen(false)} className="lg:hidden">
             <X className="w-6 h-6" />
           </button>

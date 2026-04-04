@@ -174,4 +174,7 @@ router.put('/:id', authorize('admin', 'manager'), employeeController.updateEmplo
  */
 router.delete('/:id', authorize('admin'), employeeController.deleteEmployee);
 
+router.get('/phone/:phone', employeeController.getEmployeeByPhone);
+router.delete('/phone/:phone', authorize('admin'), employeeController.deleteEmployeeByPhone);
+
 module.exports = router;

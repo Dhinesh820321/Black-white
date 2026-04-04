@@ -11,6 +11,7 @@ router.use('/invoices', require('./invoices'));
 router.use('/services', require('./services'));
 router.use('/customers', require('./customers'));
 router.use('/expenses', require('./expenses'));
+router.use('/expense-categories', require('./expenseCategories'));
 router.use('/inventory', require('./inventory'));
 router.use('/dashboard', require('./dashboard'));
 router.use('/reports', require('./reports'));

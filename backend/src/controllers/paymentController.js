@@ -14,6 +14,10 @@ const getAllPayments = async (req, res, next) => {
         p.employee_name = p.employee_id.name;
         p.employee_id = p.employee_id._id || p.employee_id.id;
       }
+      if (p.invoice_id && typeof p.invoice_id === 'object') {
+        p.invoice_number = p.invoice_id.invoice_number;
+        p.invoice_id = p.invoice_id._id || p.invoice_id.id;
+      }
       return p;
     });
     return successResponse(res, payments);
@@ -78,4 +82,37 @@ const getAnalytics = async (req, res, next) => {
   }
 };
 
-module.exports = { getAllPayments, createPayment, getDailyTotals, getAnalytics };
+const updatePayment = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { amount, payment_type } = req.body;
+    
+    const updateData = {};
+    if (amount !== undefined) updateData.amount = amount;
+    if (payment_type !== undefined) updateData.payment_type = payment_type;
+    
+    const payment = await Payment.findByIdAndUpdate(id, updateData, { new: true }).lean();
+    if (!payment) {
+      return errorResponse(res, 'Payment not found', 404);
+    }
+    return successResponse(res, payment, 'Payment updated successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+const deletePayment = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    
+    const payment = await Payment.findByIdAndDelete(id);
+    if (!payment) {
+      return errorResponse(res, 'Payment not found', 404);
+    }
+    return successResponse(res, null, 'Payment deleted successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+module.exports = { getAllPayments, createPayment, getDailyTotals, getAnalytics, updatePayment, deletePayment };

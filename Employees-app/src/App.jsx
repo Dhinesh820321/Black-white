@@ -6,6 +6,7 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Attendance from './pages/Attendance';
 import Billing from './pages/Billing';
+import Expense from './pages/Expense';
 import { History as HistoryIcon } from 'lucide-react';
 
 const PrivateRoute = ({ children }) => {
@@ -63,6 +64,7 @@ const AppRoutes = () => {
         <Route index element={<Dashboard />} />
         <Route path="attendance" element={<Attendance />} />
         <Route path="billing" element={<Billing />} />
+        <Route path="expense" element={<Expense />} />
         <Route path="history" element={<History />} />
         <Route path="profile" element={<Profile />} />
       </Route>

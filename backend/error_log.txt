@@ -1,0 +1,119 @@
+﻿✅ MongoDB Connected: localhost
+✅ Admin already exists
+node : ❌ Seeding Error: 
+ValidationError: User 
+validation failed: role: 
+`employee` is not a valid 
+enum value for path `role`.
+At line:1 char:1
++ node src/server.js 2>&1 | 
+Out-File -FilePath 
+C:\salon-management\back ...
++ ~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo           
+   : NotSpecified: (❌ Seedi  
+  ng Error...or path `role   
+ `.:String) [], RemoteExc    
+eption
+    + FullyQualifiedErrorId  
+   : NativeCommandError
+ 
+    at model.validate (C:\sal
+on-management\backend\node_mo
+dules\mongoose\lib\document.j
+s:2864:36)
+    at async model.$__save (C
+:\salon-management\backend\no
+de_modules\mongoose\lib\model
+.js:390:7)
+    at async model.save (C:\s
+alon-management\backend\node_
+modules\mongoose\lib\model.js
+:664:5)
+    at async Function.create 
+(C:\salon-management\backend\
+node_modules\mongoose\lib\mod
+el.js:2751:5)
+    at async seedData (C:\sal
+on-management\backend\src\con
+fig\seedMongo.js:50:7)
+    at async startServer (C:\
+salon-management\backend\src\
+server.js:98:5) {
+  errors: {
+    role: ValidatorError: 
+`employee` is not a valid 
+enum value for path `role`.
+        at 
+SchemaString.doValidate (C:\s
+alon-management\backend\node_
+modules\mongoose\lib\schemaTy
+pe.js:1432:13)
+        at model.validate (C:
+\salon-management\backend\nod
+e_modules\mongoose\lib\docume
+nt.js:2842:20)
+        at async 
+model.$__save (C:\salon-manag
+ement\backend\node_modules\mo
+ngoose\lib\model.js:390:7)
+        at async model.save (
+C:\salon-management\backend\n
+ode_modules\mongoose\lib\mode
+l.js:664:5)
+        at async 
+Function.create (C:\salon-man
+agement\backend\node_modules\
+mongoose\lib\model.js:2751:5)
+        at async seedData (C:
+\salon-management\backend\src
+\config\seedMongo.js:50:7)
+        at async startServer 
+(C:\salon-management\backend\
+src\server.js:98:5) {
+      properties: [Object],
+      kind: 'enum',
+      path: 'role',
+      value: 'employee',
+      reason: undefined,
+      [Symbol(mongoose#valida
+torError)]: true
+    }
+  },
+  _message: 'User validation 
+failed'
+}
+✅ MongoDB Connected and Seeded
+node:events:497
+      throw er; // Unhandled 
+'error' event
+      ^
+
+Error: listen EADDRINUSE: 
+address already in use 
+:::5000
+    at 
+Server.setupListenHandle [as 
+_listen2] (node:net:1940:16)
+    at listenInCluster 
+(node:net:1997:12)
+    at Server.listen 
+(node:net:2102:7)
+    at startServer (C:\salon-
+management\backend\src\server
+.js:102:12)
+Emitted 'error' event on 
+Server instance at:
+    at emitErrorNT 
+(node:net:1976:8)
+    at process.processTicksAn
+dRejections (node:internal/pr
+ocess/task_queues:90:21) {
+  code: 'EADDRINUSE',
+  errno: -4091,
+  syscall: 'listen',
+  address: '::',
+  port: 5000
+}
+
+Node.js v22.19.0
