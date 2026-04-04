@@ -11,6 +11,7 @@ const authController = require('../controllers/authController');
 const { auth, authorize } = require('../middlewares/auth');
 const { validate } = require('../middlewares/validate');
 const User = require('../models/User');
+const upload = require('../config/upload');
 
 // ==================== PUBLIC ROUTES ====================
 
@@ -193,6 +194,8 @@ router.post('/password/change', auth, [
   body('current_password').notEmpty().withMessage('Current password is required'),
   body('new_password').isLength({ min: 6 }).withMessage('New password must be at least 6 characters')
 ], validate, authController.changePassword);
+
+router.post('/upload-profile-image', auth, upload.single('image'), authController.uploadProfileImage);
 
 // ==================== LEGACY ROUTES (for backward compatibility) ====================
 

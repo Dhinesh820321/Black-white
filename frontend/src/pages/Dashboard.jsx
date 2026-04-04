@@ -48,34 +48,9 @@ export default function Dashboard() {
   const [selectedBranch, setSelectedBranch] = useState(user?.branch_id || '');
 
   useEffect(() => {
-    const loadData = async () => {
-      setLoading(true);
-      try {
-        const params = cleanParams({ branch_id: selectedBranch });
-        const [dashRes, chartRes, branchRes] = await Promise.all([
-          dashboardAPI.getDashboard(params),
-          dashboardAPI.getRevenueChart(params),
-          branchesAPI.getAll()
-        ]);
-        
-        if (dashRes?.data?.success && dashRes.data.data) {
-          setDashboard(dashRes.data.data);
-        }
-        if (chartRes?.data?.success && chartRes.data.data) {
-          setChartData(chartRes.data.data);
-        }
-        if (branchRes?.data?.success && branchRes.data.data) {
-          setBranches(Array.isArray(branchRes.data.data) ? branchRes.data.data : defaultBranches);
-        }
-      } catch (error) {
-        console.error('Dashboard error:', error);
-      }
-      setLoading(false);
-    };
-
-    // loadData();
-    // const interval = setInterval(loadData, 5000);
-    // return () => clearInterval(interval);
+    loadData();
+    const interval = setInterval(loadData, 5000);
+    return () => clearInterval(interval);
   }, [selectedBranch]);
 
   const loadData = async () => {
@@ -99,7 +74,6 @@ export default function Dashboard() {
       }
     } catch (error) {
       console.error('Dashboard error:', error);
-      // Keep default values on error
     }
     setLoading(false);
   };

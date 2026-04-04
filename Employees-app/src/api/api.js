@@ -44,18 +44,21 @@ api.interceptors.response.use(
 );
 
 export const authAPI = {
-  // Employee login with geofencing
   login: (data) => api.post('/auth/employee/login', data),
   getProfile: () => api.get('/auth/profile'),
   requestOTP: (data) => api.post('/auth/otp/request', data),
   verifyOTP: (data) => api.post('/auth/otp/verify', data),
   resetPassword: (data) => api.post('/auth/password/reset', data),
+  uploadProfileImage: (formData) => api.post('/auth/upload-profile-image', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
 };
 
 export const attendanceAPI = {
   checkIn: () => api.post('/attendance/check-in'),
   checkOut: () => api.post('/attendance/check-out'),
   getToday: () => api.get('/attendance/today'),
+  getHistory: (params) => api.get('/attendance', { params }),
 };
 
 export const customersAPI = {
@@ -68,6 +71,7 @@ export const servicesAPI = {
 };
 
 export const invoicesAPI = {
+  getAll: (params) => api.get('/invoices', { params }),
   create: (data) => api.post('/invoices', data),
 };
 

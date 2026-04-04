@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
 const User = require('../models/User');
+const { UserModel } = require('../models/User');
 const { OTPModel, SessionModel } = require('../models/Auth');
 const { successResponse, errorResponse } = require('../utils/responseHelper');
 const { isWithinRadius } = require('../utils/geofencing');
@@ -410,6 +411,26 @@ const changePassword = async (req, res, next) => {
   }
 };
 
+const uploadProfileImage = async (req, res, next) => {
+  try {
+    if (!req.file) {
+      return errorResponse(res, 'No image file provided', 400);
+    }
+
+    const userId = req.user._id || req.user.id;
+    const profile_image = `/uploads/profile/${req.file.filename}`;
+
+    await UserModel.findByIdAndUpdate(userId, { profile_image });
+
+    return successResponse(res, {
+      profile_image,
+      message: 'Profile image uploaded successfully'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   adminLogin,
   employeeLogin,
@@ -418,5 +439,6 @@ module.exports = {
   resetPassword,
   getProfile,
   changePassword,
-  generateTempPassword
+  generateTempPassword,
+  uploadProfileImage
 };

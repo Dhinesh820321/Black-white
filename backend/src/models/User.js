@@ -14,7 +14,8 @@ const userSchema = new mongoose.Schema({
   password_changed_at: { type: Date },
   geo_lat: { type: Number },
   geo_long: { type: Number },
-  geo_radius: { type: Number, default: 100 }
+  geo_radius: { type: Number, default: 100 },
+  profile_image: { type: String, default: '' }
 }, {
   timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }
 });
