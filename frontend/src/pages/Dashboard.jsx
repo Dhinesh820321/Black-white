@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { dashboardAPI, branchesAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { cleanParams } from '../utils/cleanParams';
@@ -39,6 +39,11 @@ const defaultChartData = Array.from({ length: 25 }, (_, i) => ({
   invoices: Math.floor(Math.random() * 10) + 5
 }));
 
+const getLocalDateString = () => {
+  const now = new Date();
+  return now.toLocaleDateString('en-CA', { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone });
+};
+
 export default function Dashboard() {
   const { user } = useAuth();
   const [dashboard, setDashboard] = useState(defaultDashboard);
@@ -46,17 +51,16 @@ export default function Dashboard() {
   const [branches, setBranches] = useState(defaultBranches);
   const [loading, setLoading] = useState(true);
   const [selectedBranch, setSelectedBranch] = useState(user?.branch_id || '');
+  const branchRef = useRef(user?.branch_id || '');
 
-  useEffect(() => {
-    loadData();
-    const interval = setInterval(loadData, 5000);
-    return () => clearInterval(interval);
-  }, [selectedBranch]);
-
-  const loadData = async () => {
-    setLoading(true);
+  const fetchData = useCallback(async (showLoading = false) => {
+    if (showLoading) {
+      setLoading(true);
+    }
+    
     try {
-      const params = cleanParams({ branch_id: selectedBranch });
+      const currentBranch = branchRef.current;
+      const params = cleanParams({ branch_id: currentBranch, date: getLocalDateString() });
       const [dashRes, chartRes, branchRes] = await Promise.all([
         dashboardAPI.getDashboard(params),
         dashboardAPI.getRevenueChart(params),
@@ -75,8 +79,22 @@ export default function Dashboard() {
     } catch (error) {
       console.error('Dashboard error:', error);
     }
-    setLoading(false);
-  };
+    
+    if (showLoading) {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    branchRef.current = selectedBranch;
+    fetchData(true);
+    
+    const interval = setInterval(() => fetchData(false), 30000);
+    
+    return () => {
+      clearInterval(interval);
+    };
+  }, [fetchData]);
 
   if (loading) {
     return (
