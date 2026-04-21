@@ -54,20 +54,25 @@ const getExpense = async (req, res, next) => {
 const createExpense = async (req, res, next) => {
   try {
     console.log('📥 CREATE EXPENSE - Request body:', req.body);
-    console.log('📥 CREATE EXPENSE - User:', req.user?.id, req.user?.role);
+    console.log('📥 CREATE EXPENSE - User:', req.user?.id, req.user?.name, req.user?.role, req.user?.branch_id);
     
     const { title, amount, payment_mode, notes } = req.body;
     
     const employeeId = req.user._id || req.user.id;
     let branchId = req.user.branch_id;
     
+    if (!employeeId) {
+      console.error('❌ employee_id is missing from user');
+      return errorResponse(res, 'Authentication error. Please login again.', 400);
+    }
+    
     if (typeof branchId === 'object' && branchId !== null) {
       branchId = branchId._id || branchId.id;
     }
 
     if (!branchId) {
-      console.error('❌ branch_id is missing');
-      return errorResponse(res, 'Branch ID missing. Please contact admin.', 400);
+      console.error('❌ branch_id is missing for user:', req.user?.name);
+      return errorResponse(res, 'No branch assigned. Please contact your admin to assign a branch.', 400);
     }
     if (!title || !title.trim()) {
       console.error('❌ title is missing');
@@ -77,9 +82,9 @@ const createExpense = async (req, res, next) => {
       console.error('❌ invalid amount');
       return errorResponse(res, 'Valid amount is required', 400);
     }
-    if (!payment_mode || !['CASH', 'ONLINE'].includes(payment_mode)) {
+    if (!payment_mode || !['CASH', 'UPI'].includes(payment_mode)) {
       console.error('❌ invalid payment_mode');
-      return errorResponse(res, 'Payment mode must be CASH or ONLINE', 400);
+      return errorResponse(res, 'Payment mode must be CASH or UPI', 400);
     }
     
     const expense = await Expense.create({

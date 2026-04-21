@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { expensesAPI, branchesAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
-import { formatCurrency, formatDate } from '../utils/helpers';
-import { Loader2, FileText, ChevronLeft, ChevronRight, Edit, Trash2 } from 'lucide-react';
+import { formatCurrency, formatDate, exportToPDF } from '../utils/helpers';
+import { Loader2, FileText, ChevronLeft, ChevronRight, Edit, Trash2, FileDown } from 'lucide-react';
 
 const DEFAULT_EXPENSES = [];
 const DEFAULT_BRANCHES = [];
@@ -19,6 +19,7 @@ export default function Expenses() {
   const [error, setError] = useState(null);
   const [editingExpense, setEditingExpense] = useState(null);
   const [deleteId, setDeleteId] = useState(null);
+  const [exporting, setExporting] = useState(false);
   const isModalOpen = useRef(false);
 
   const loadBranches = useCallback(async () => {
@@ -99,6 +100,35 @@ export default function Expenses() {
 
   const paginatedExpenses = expenses.slice((pagination.page - 1) * ITEMS_PER_PAGE, pagination.page * ITEMS_PER_PAGE);
 
+  const handleExportPDF = () => {
+    setExporting(true);
+    try {
+      const columns = [
+        { key: 'created_at', header: 'Date', format: (val) => formatDate(val) },
+        { key: 'employee_name', header: 'Employee' },
+        { key: 'branch_name', header: 'Branch' },
+        { key: 'title', header: 'Title' },
+        { key: 'payment_mode', header: 'Payment' },
+        { key: 'amount', header: 'Amount', format: (val) => formatCurrency(val) },
+      ];
+      
+      const totalAmount = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+      
+      exportToPDF({
+        title: 'Expenses Report',
+        data: expenses,
+        columns,
+        filename: 'expenses',
+        footerData: {
+          totalCount: expenses.length,
+          totalAmount
+        }
+      });
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const getPageNumbers = () => {
     const pages = [];
     const total = pagination.totalPages;
@@ -134,6 +164,14 @@ export default function Expenses() {
           <h1 className="text-2xl font-bold text-gray-900">Expenses</h1>
           <p className="text-gray-600">View employee-recorded expenses</p>
         </div>
+        <button 
+          onClick={handleExportPDF} 
+          disabled={exporting || expenses.length === 0}
+          className="btn-secondary flex items-center gap-2"
+        >
+          {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />} 
+          Export PDF
+        </button>
       </div>
 
       {/* <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -201,7 +239,7 @@ export default function Expenses() {
             >
               <option value="">All</option>
               <option value="CASH">Cash</option>
-              <option value="ONLINE">Online</option>
+              <option value="UPI">UPI</option>
             </select>
           </div>
           <div className="flex flex-col gap-1 self-end">

@@ -111,9 +111,10 @@ router.get('/:id/performance', employeeController.getEmployeePerformance);
  *         description: Server Error
  */
 router.post('/', authorize('admin'), [
-  body('name').notEmpty().withMessage('Name is required'),
-  body('phone').isMobilePhone('any').withMessage('Valid phone required'),
-  body('password').isLength({ min: 6 }).withMessage('Password min 6 chars')
+  body('name').notEmpty().trim().withMessage('Name is required'),
+  body('phone').notEmpty().trim().withMessage('Phone number is required')
+    .isLength({ min: 10, max: 15 }).withMessage('Phone must be 10-15 characters'),
+  body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters')
 ], validate, employeeController.createEmployee);
 
 /**

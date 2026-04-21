@@ -79,13 +79,8 @@ class Invoice {
       });
       await invoice.save();
 
-      if (data.customer_id) {
-        const CustomerModel = mongoose.model('Customer');
-        await CustomerModel.findByIdAndUpdate(data.customer_id, {
-          $set: { last_visit: new Date() },
-          $inc: { loyalty_points: Math.floor(finalAmount / 100) }
-        });
-      }
+      // NOTE: last_visit is now handled by invoiceController
+      // Do NOT update last_visit here to avoid duplicate updates
 
       const PaymentModel = mongoose.model('Payment');
       const payment = new PaymentModel({

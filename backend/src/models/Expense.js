@@ -6,7 +6,7 @@ const expenseSchema = new mongoose.Schema({
   category_id: { type: mongoose.Schema.Types.ObjectId, ref: 'ExpenseCategory', default: null },
   title: { type: String, required: true },
   amount: { type: Number, required: true },
-  payment_mode: { type: String, enum: ['CASH', 'ONLINE'], default: 'CASH', required: true },
+  payment_mode: { type: String, enum: ['CASH', 'UPI'], default: 'CASH', required: true },
   notes: { type: String, default: '' },
   receipt_image: { type: String }
 }, {

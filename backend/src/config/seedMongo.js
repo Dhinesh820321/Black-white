@@ -5,6 +5,26 @@ const seedData = async () => {
   try {
     const User = mongoose.model('User');
     const Branch = mongoose.model('Branch');
+    const Customer = mongoose.model('Customer');
+
+    // Create unique index on Customer.phone
+    try {
+      await Customer.collection.createIndex({ phone: 1 }, { unique: true });
+      console.log('✅ Customer phone index created/verified');
+    } catch (err) {
+      if (err.code !== 85 && err.code !== 86) {
+        console.log('ℹ️ Customer phone index already exists');
+      }
+    }
+
+    // CRITICAL: Reset ALL customers' last_visit and visit_count
+    // This ensures correct "New Customer" vs "Active" distinction
+    // New customer = visit_count <= 1 (0 or 1 visits = still "New")
+    const resetResult = await Customer.updateMany(
+      {},
+      { $set: { last_visit: null, visit_count: 0 } }
+    );
+    console.log(`🧹 Reset last_visit & visit_count for ${resetResult.modifiedCount} customers`);
 
     // Check if any branches exist
     const branchCount = await Branch.countDocuments();

@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { attendanceAPI, branchesAPI, employeesAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
-import { formatTime } from '../utils/helpers';
-import { Clock, LogIn, LogOut, Calendar, Loader2, User, Building2, Users, Download, ChevronLeft, ChevronRight } from 'lucide-react';
+import { formatTime, formatCurrency, exportToPDF } from '../utils/helpers';
+import { Clock, LogIn, LogOut, Calendar, Loader2, User, Building2, Users, FileDown, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const getDaysInMonth = (year, month) => new Date(year, month, 0).getDate();
 const ITEMS_PER_PAGE = 10;
@@ -37,6 +37,7 @@ export default function Attendance() {
   
   const [stats, setStats] = useState({ totalPresent: 0, totalAbsent: 0, totalHours: 0 });
   const [pagination, setPagination] = useState({ summaryPage: 1, detailsPage: 1, total: 0 });
+  const [exporting, setExporting] = useState(false);
 
   const selectedBranchRef = useRef(selectedBranch);
 
@@ -199,25 +200,31 @@ export default function Attendance() {
     return pages;
   };
 
-  const exportToCSV = () => {
-    const headers = ['Employee Name', 'Branch', 'Role', 'Present Days', 'Absent Days', 'Total Hours'];
-    const rows = summaryData.map(emp => [
-      emp.employee_name,
-      emp.branch_name,
-      emp.role,
-      emp.present_days,
-      emp.absent_days,
-      formatHours(emp.total_hours)
-    ]);
-    
-    const csvContent = [headers, ...rows].map(row => row.join(',')).join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `attendance-report-${filterType === 'date' ? selectedDate : selectedMonth}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+  const handleExportPDF = () => {
+    if (summaryData.length === 0) return;
+    setExporting(true);
+    try {
+      const columns = [
+        { key: 'employee_name', header: 'Employee Name' },
+        { key: 'branch_name', header: 'Branch' },
+        { key: 'role', header: 'Role' },
+        { key: 'present_days', header: 'Present Days' },
+        { key: 'absent_days', header: 'Absent Days' },
+        { key: 'total_hours', header: 'Total Hours', format: (val) => formatHours(val) },
+      ];
+      
+      exportToPDF({
+        title: `Attendance Report - ${filterType === 'date' ? selectedDate : selectedMonth}`,
+        data: summaryData,
+        columns,
+        filename: `attendance-report`,
+        footerData: {
+          totalCount: summaryData.length
+        }
+      });
+    } finally {
+      setExporting(false);
+    }
   };
 
   if (loading) {
@@ -402,10 +409,11 @@ export default function Attendance() {
               )}
             </div>
             <button
-              onClick={exportToCSV}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-primary-600 bg-primary-50 rounded-lg hover:bg-primary-100 transition-colors"
+              onClick={handleExportPDF}
+              disabled={exporting || summaryData.length === 0}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-primary-600 bg-primary-50 rounded-lg hover:bg-primary-100 transition-colors disabled:opacity-50"
             >
-              <Download className="w-4 h-4" /> Export CSV
+              {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />} Export PDF
             </button>
           </div>
           

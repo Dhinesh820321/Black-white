@@ -3,8 +3,8 @@ const { successResponse, errorResponse } = require('../utils/responseHelper');
 
 const getAllCustomers = async (req, res, next) => {
   try {
-    const { search, retention_alert } = req.query;
-    const customers = await Customer.findAll({ search, retention_alert });
+    const { search, retention_alert, branchId } = req.query;
+    const customers = await Customer.findAll({ search, retention_alert, branchId });
     return successResponse(res, customers);
   } catch (error) {
     next(error);
@@ -85,4 +85,46 @@ const getRetentionAlerts = async (req, res, next) => {
   }
 };
 
-module.exports = { getAllCustomers, getCustomer, createCustomer, updateCustomer, deleteCustomer, getVisitHistory, getRetentionAlerts };
+const searchByMobile = async (req, res, next) => {
+  try {
+    const { phone } = req.params;
+    if (!phone || phone.replace(/\D/g, '').length < 10) {
+      return errorResponse(res, 'Valid 10-digit phone number required', 400);
+    }
+    const cleaned = phone.replace(/\D/g, '').slice(-10);
+    const customer = await Customer.findByPhone(cleaned);
+    if (!customer) {
+      return successResponse(res, null, 'Customer not found');
+    }
+    return successResponse(res, customer);
+  } catch (error) {
+    next(error);
+  }
+};
+
+const findOrCreate = async (req, res, next) => {
+  try {
+    const { name, phone } = req.body;
+    if (!phone) {
+      return errorResponse(res, 'Phone number is required', 400);
+    }
+    const cleaned = phone.replace(/\D/g, '').slice(-10);
+    let customer = await Customer.findByPhone(cleaned);
+    if (customer) {
+      return successResponse(res, customer, 'Existing customer found');
+    }
+    customer = await Customer.create({
+      name: (name || 'Walk-in').trim(),
+      phone: cleaned,
+    });
+    return successResponse(res, customer, 'New customer created', 201);
+  } catch (error) {
+    if (error.code === 11000) {
+      const existing = await Customer.findByPhone(req.body.phone?.replace(/\D/g, '').slice(-10));
+      return successResponse(res, existing, 'Existing customer found');
+    }
+    next(error);
+  }
+};
+
+module.exports = { getAllCustomers, getCustomer, createCustomer, updateCustomer, deleteCustomer, getVisitHistory, getRetentionAlerts, searchByMobile, findOrCreate };

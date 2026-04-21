@@ -5,7 +5,7 @@ import { cleanParams } from '../utils/cleanParams';
 import { formatCurrency, formatNumber } from '../utils/helpers';
 import {
   TrendingUp, TrendingDown, Users, CreditCard, Calendar,
-  Package, AlertTriangle, ArrowUpRight, ArrowDownRight
+  Package, AlertTriangle, ArrowUpRight, ArrowDownRight, RefreshCw
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
@@ -13,31 +13,22 @@ const COLORS = ['#0ea5e9', '#22c55e', '#a855f7'];
 
 const defaultDashboard = {
   today: {
-    revenue: 12580,
-    collection: 12580,
-    upiCollection: 6800,
-    cashCollection: 5780,
-    invoices: 15,
-    attendance: { total: 8, checkedIn: 6 }
+    revenue: 0,
+    collection: 0,
+    upiCollection: 0,
+    cashCollection: 0,
+    invoices: 0,
+    attendance: { total: 0, checkedIn: 0 }
   },
-  month: { revenue: 285400 },
-  totals: { lowStockItems: 2, retentionAlerts: 3, totalCustomers: 156 },
+  month: { revenue: 0 },
+  totals: { lowStockItems: 0, retentionAlerts: 0, totalCustomers: 0 },
   alerts: {
-    lowStock: [{ id: 3, item_name: 'Facial Cream', branch_name: 'Main Branch', remaining_quantity: 8 }],
-    retention: [{ id: 3, name: 'Vikram Mehta', phone: '9345678901', days_since_visit: 52 }]
+    lowStock: [],
+    retention: []
   }
 };
 
-const defaultBranches = [
-  { id: 1, name: 'Main Branch - Downtown' },
-  { id: 2, name: 'South Mall Branch' }
-];
-
-const defaultChartData = Array.from({ length: 25 }, (_, i) => ({
-  day: i + 1,
-  revenue: Math.random() * 5000 + 3000,
-  invoices: Math.floor(Math.random() * 10) + 5
-}));
+const defaultChartData = [];
 
 const getLocalDateString = () => {
   const now = new Date();
@@ -48,33 +39,42 @@ export default function Dashboard() {
   const { user } = useAuth();
   const [dashboard, setDashboard] = useState(defaultDashboard);
   const [chartData, setChartData] = useState(defaultChartData);
-  const [branches, setBranches] = useState(defaultBranches);
+  const [branches, setBranches] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedBranch, setSelectedBranch] = useState(user?.branch_id || '');
-  const branchRef = useRef(user?.branch_id || '');
+  const [selectedBranch, setSelectedBranch] = useState('');
+  const [chartRange, setChartRange] = useState('week');
+  const branchRef = useRef('');
+  const isInitialMount = useRef(true);
 
-  const fetchData = useCallback(async (showLoading = false) => {
+  const fetchDashboard = useCallback(async (showLoading = true) => {
     if (showLoading) {
       setLoading(true);
     }
     
     try {
       const currentBranch = branchRef.current;
-      const params = cleanParams({ branch_id: currentBranch, date: getLocalDateString() });
-      const [dashRes, chartRes, branchRes] = await Promise.all([
+      const params = cleanParams({ branch_id: currentBranch || undefined });
+      
+      console.log('📊 Fetching Dashboard - Branch:', currentBranch || 'All');
+      
+      const [dashRes, trendRes, branchRes] = await Promise.all([
         dashboardAPI.getDashboard(params),
-        dashboardAPI.getRevenueChart(params),
+        dashboardAPI.getRevenueTrend({ ...params, range: chartRange }),
         branchesAPI.getAll()
       ]);
       
-      if (dashRes?.data?.success && dashRes.data.data) {
-        setDashboard(dashRes.data.data);
+      if (dashRes?.data?.success) {
+        setDashboard(dashRes.data.data || defaultDashboard);
       }
-      if (chartRes?.data?.success && chartRes.data.data) {
-        setChartData(chartRes.data.data);
+      
+      if (trendRes?.data?.success) {
+        const trendData = trendRes.data.data || [];
+        console.log('📈 Revenue Trend Data:', trendData.length, 'records');
+        setChartData(trendData);
       }
-      if (branchRes?.data?.success && branchRes.data.data) {
-        setBranches(Array.isArray(branchRes.data.data) ? branchRes.data.data : defaultBranches);
+      
+      if (branchRes?.data?.success) {
+        setBranches(Array.isArray(branchRes.data.data) ? branchRes.data.data : []);
       }
     } catch (error) {
       console.error('Dashboard error:', error);
@@ -83,20 +83,38 @@ export default function Dashboard() {
     if (showLoading) {
       setLoading(false);
     }
-  }, []);
+  }, [chartRange]);
 
   useEffect(() => {
     branchRef.current = selectedBranch;
-    fetchData(true);
     
-    const interval = setInterval(() => fetchData(false), 30000);
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      fetchDashboard(true);
+    } else {
+      fetchDashboard(false);
+    }
+    
+    const interval = setInterval(() => fetchDashboard(false), 60000);
     
     return () => {
       clearInterval(interval);
     };
-  }, [fetchData]);
+  }, [selectedBranch, chartRange, fetchDashboard]);
 
-  if (loading) {
+  const handleBranchChange = (e) => {
+    setSelectedBranch(e.target.value);
+  };
+
+  const handleRefresh = () => {
+    fetchDashboard(true);
+  };
+
+  const handleRangeChange = (range) => {
+    setChartRange(range);
+  };
+
+  if (loading && !dashboard) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
@@ -109,6 +127,8 @@ export default function Dashboard() {
     { name: 'Cash', value: dashboard?.today?.cashCollection || 0 }
   ].filter(d => d.value > 0);
 
+  const chartHasData = chartData.length > 0 && chartData.some(d => d.revenue > 0);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -116,18 +136,27 @@ export default function Dashboard() {
           <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
           <p className="text-gray-600">Welcome back, {user?.name}</p>
         </div>
-        {user?.role === 'admin' && (
-          <select
-            value={selectedBranch}
-            onChange={(e) => setSelectedBranch(e.target.value)}
-            className="input w-auto"
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleRefresh}
+            className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+            title="Refresh"
           >
-            <option value="">All Branches</option>
-            {(branches || []).map(b => (
-              <option key={b.id} value={b.id}>{b.name}</option>
-            ))}
-          </select>
-        )}
+            <RefreshCw className={`w-5 h-5 text-gray-600 ${loading ? 'animate-spin' : ''}`} />
+          </button>
+          {user?.role === 'admin' && branches.length > 0 && (
+            <select
+              value={selectedBranch}
+              onChange={handleBranchChange}
+              className="input w-auto"
+            >
+              <option value="">All Branches</option>
+              {branches.map(b => (
+                <option key={b._id} value={b._id}>{b.name}</option>
+              ))}
+            </select>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -203,47 +232,110 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 card">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Revenue Trend</h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">Revenue Trend</h3>
+            <div className="flex gap-2">
+              <button
+                onClick={() => handleRangeChange('week')}
+                className={`px-3 py-1 text-sm rounded-lg transition-colors ${
+                  chartRange === 'week' 
+                    ? 'bg-primary-100 text-primary-700' 
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                Week
+              </button>
+              <button
+                onClick={() => handleRangeChange('month')}
+                className={`px-3 py-1 text-sm rounded-lg transition-colors ${
+                  chartRange === 'month' 
+                    ? 'bg-primary-100 text-primary-700' 
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                Month
+              </button>
+            </div>
+          </div>
           <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chartData || []}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="day" />
-                <YAxis />
-                <Tooltip formatter={(value) => formatCurrency(value)} />
-                <Area
-                  type="monotone"
-                  dataKey="revenue"
-                  stroke="#0ea5e9"
-                  fill="#0ea5e9"
-                  fillOpacity={0.1}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+            {loading && chartData.length === 0 ? (
+              <div className="flex items-center justify-center h-full">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+              </div>
+            ) : chartHasData ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.1}/>
+                      <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <XAxis 
+                    dataKey="date" 
+                    tick={{ fontSize: 12 }}
+                    tickFormatter={(value) => {
+                      const date = new Date(value);
+                      return `${date.getDate()}/${date.getMonth() + 1}`;
+                    }}
+                  />
+                  <YAxis 
+                    tick={{ fontSize: 12 }}
+                    tickFormatter={(value) => `Rs.${(value/1000).toFixed(0)}k`}
+                  />
+                  <Tooltip 
+                    formatter={(value) => formatCurrency(value)}
+                    labelFormatter={(label) => `Date: ${label}`}
+                    contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb' }}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="revenue"
+                    stroke="#0ea5e9"
+                    strokeWidth={2}
+                    fill="url(#colorRevenue)"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full text-gray-500">
+                <TrendingUp className="w-12 h-12 text-gray-300 mb-2" />
+                <p>No revenue data available</p>
+                <p className="text-sm">Data will appear after first invoice</p>
+              </div>
+            )}
           </div>
         </div>
 
         <div className="card">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Payment Split</h3>
           <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={pieData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={80}
-                  paddingAngle={5}
-                  dataKey="value"
-                >
-                  {pieData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip formatter={(value) => formatCurrency(value)} />
-              </PieChart>
-            </ResponsiveContainer>
+            {pieData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={pieData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={80}
+                    paddingAngle={5}
+                    dataKey="value"
+                  >
+                    {pieData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(value) => formatCurrency(value)} />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-full text-gray-500">
+                <CreditCard className="w-8 h-8 text-gray-300" />
+                <p className="ml-2">No payments yet</p>
+              </div>
+            )}
           </div>
           <div className="flex justify-center gap-4 mt-4">
             {pieData.map((entry, index) => (
@@ -265,10 +357,10 @@ export default function Dashboard() {
             </div>
             <div className="space-y-3">
               {dashboard.alerts.lowStock.map((item) => (
-                <div key={item.id} className="flex items-center justify-between p-3 bg-red-50 rounded-lg">
+                <div key={item.id || item._id} className="flex items-center justify-between p-3 bg-red-50 rounded-lg">
                   <div>
                     <p className="font-medium text-gray-900">{item.item_name}</p>
-                    <p className="text-sm text-gray-500">{item.branch_name}</p>
+                    <p className="text-sm text-gray-500">{item.branch_name || item.branch?.name}</p>
                   </div>
                   <span className="text-red-600 font-semibold">
                     {item.remaining_quantity} left
@@ -287,7 +379,7 @@ export default function Dashboard() {
             </div>
             <div className="space-y-3">
               {dashboard.alerts.retention.map((customer) => (
-                <div key={customer.id} className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg">
+                <div key={customer.id || customer._id} className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg">
                   <div>
                     <p className="font-medium text-gray-900">{customer.name}</p>
                     <p className="text-sm text-gray-500">{customer.phone}</p>

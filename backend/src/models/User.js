@@ -6,7 +6,7 @@ const userSchema = new mongoose.Schema({
   name: { type: String, required: true },
   phone: { type: String, unique: true, required: true },
   password: { type: String, required: true },
-  role: { type: String, enum: ['admin', 'employee'], required: true },
+  role: { type: String, enum: ['admin', 'manager', 'employee', 'stylist', 'helper'], required: true },
   branch_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch' },
   status: { type: String, enum: ['active', 'inactive'], default: 'active' },
   salary: { type: Number, default: 0 },
@@ -44,7 +44,8 @@ class User {
   }
 
   static async findByPhone(phone) {
-    return UserModel.findOne({ phone }).populate('branch_id').lean();
+    const normalizedPhone = phone.replace(/[\s-]/g, '');
+    return UserModel.findOne({ phone: normalizedPhone }).populate('branch_id').lean();
   }
 
   static async create(data) {

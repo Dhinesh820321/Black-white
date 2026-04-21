@@ -4,7 +4,9 @@ const customerSchema = new mongoose.Schema({
   name: { type: String, required: true },
   phone: { type: String, unique: true, required: true },
   email: { type: String },
+  branchId: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch' },
   last_visit: { type: Date },
+  visit_count: { type: Number, default: 0 },
   loyalty_points: { type: Number, default: 0 },
   notes: { type: String }
 }, {
@@ -16,18 +18,35 @@ const CustomerModel = mongoose.model('Customer', customerSchema);
 class Customer {
   static async findAll(filters = {}) {
     let query = {};
+    
     if (filters.search) {
       query.$or = [
         { name: { $regex: filters.search, $options: 'i' } },
         { phone: { $regex: filters.search, $options: 'i' } }
       ];
     }
+    
     if (filters.retention_alert) {
       const fortyFiveDaysAgo = new Date();
       fortyFiveDaysAgo.setDate(fortyFiveDaysAgo.getDate() - 45);
-      query.last_visit = { $lt: fortyFiveDaysAgo };
+      query.last_visit = { $lt: fortyFiveDaysAgo, $ne: null };
     }
-    return CustomerModel.find(query).sort({ created_at: -1 }).lean();
+    
+    if (filters.branchId && mongoose.Types.ObjectId.isValid(filters.branchId)) {
+      query.branchId = filters.branchId;
+    }
+    
+    const customers = await CustomerModel.find(query)
+      .populate('branchId', 'name')
+      .sort({ created_at: -1 })
+      .lean();
+    
+    return customers.map(c => ({
+      ...c,
+      branch_name: c.branchId?.name || null,
+      branch_id: c.branchId?._id || null,
+      days_since_visit: c.last_visit ? Math.floor((new Date() - c.last_visit) / (1000 * 60 * 60 * 24)) : null
+    }));
   }
 
   static async findById(id) {
@@ -51,6 +70,22 @@ class Customer {
     return CustomerModel.findByIdAndUpdate(id, { $set: data }, { new: true }).lean();
   }
 
+  static async recordVisit(id, invoiceAmount) {
+    if (!mongoose.Types.ObjectId.isValid(id)) return null;
+    
+    const loyaltyPoints = Math.floor(invoiceAmount / 100);
+    
+    return CustomerModel.findByIdAndUpdate(
+      id,
+      {
+        $inc: { visit_count: 1 },
+        $set: { last_visit: new Date() },
+        $inc: { loyalty_points: loyaltyPoints }
+      },
+      { new: true }
+    ).lean();
+  }
+
   static async delete(id) {
     if (!mongoose.Types.ObjectId.isValid(id)) return false;
     await CustomerModel.findByIdAndDelete(id);
@@ -66,14 +101,21 @@ class Customer {
     const fortyFiveDaysAgo = new Date();
     fortyFiveDaysAgo.setDate(fortyFiveDaysAgo.getDate() - 45);
     
-    let query = { last_visit: { $lt: fortyFiveDaysAgo } };
+    let query = { last_visit: { $lt: fortyFiveDaysAgo, $ne: null } };
     
-    // In MongoDB, we'd typically use aggregation for complex joins,
-    // but here we'll keep it simple for the MVP.
-    const customers = await CustomerModel.find(query).lean();
+    if (branchId && mongoose.Types.ObjectId.isValid(branchId)) {
+      query.branchId = branchId;
+    }
+    
+    const customers = await CustomerModel.find(query)
+      .populate('branchId', 'name')
+      .lean();
+    
     return customers.map(c => ({
       ...c,
-      days_since_visit: Math.floor((new Date() - c.last_visit) / (1000 * 60 * 60 * 24))
+      branch_name: c.branchId?.name || null,
+      branch_id: c.branchId?._id || null,
+      days_since_visit: c.last_visit ? Math.floor((new Date() - c.last_visit) / (1000 * 60 * 60 * 24)) : null
     }));
   }
 }

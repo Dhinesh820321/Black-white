@@ -11,7 +11,6 @@ const { auth, branchAccess } = require('../middlewares/auth');
 
 router.use(auth);
 
-
 /**
  * @swagger
  * /api/attendance:
@@ -54,6 +53,53 @@ router.get('/today', attendanceController.getTodayAttendance);
 
 /**
  * @swagger
+ * /api/attendance/me/today:
+ *   get:
+ *     tags: [Attendance]
+ *     summary: GET /api/attendance/me/today - Get current employee's today's attendance
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Success
+ *       400:
+ *         description: Bad Request
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server Error
+ */
+router.get('/me/today', attendanceController.getEmployeeToday);
+
+/**
+ * @swagger
+ * /api/attendance/history:
+ *   get:
+ *     tags: [Attendance]
+ *     summary: GET /api/attendance/history - Get current employee's attendance history
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: filter
+ *         schema:
+ *           type: string
+ *           enum: [today, week, month]
+ *         description: Filter by time period
+ *     responses:
+ *       200:
+ *         description: Success
+ *       400:
+ *         description: Bad Request
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server Error
+ */
+router.get('/history', attendanceController.getHistory);
+
+/**
+ * @swagger
  * /api/attendance/summary:
  *   get:
  *     tags: [Attendance]
@@ -81,11 +127,14 @@ router.get('/summary', branchAccess, attendanceController.getAttendanceSummary);
  *     security:
  *       - bearerAuth: []
  *     requestBody:
- *       required: true
+ *       required: false
  *       content:
  *         application/json:
  *           schema:
  *             type: object
+ *             properties:
+ *               location:
+ *                 type: string
  *     responses:
  *       200:
  *         description: Success
@@ -107,7 +156,7 @@ router.post('/check-in', attendanceController.checkIn);
  *     security:
  *       - bearerAuth: []
  *     requestBody:
- *       required: true
+ *       required: false
  *       content:
  *         application/json:
  *           schema:

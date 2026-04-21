@@ -11,7 +11,6 @@ const { auth, branchAccess } = require('../middlewares/auth');
 
 router.use(auth);
 
-
 /**
  * @swagger
  * /api/dashboard:
@@ -20,6 +19,12 @@ router.use(auth);
  *     summary: GET /api/dashboard
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: branch_id
+ *         schema:
+ *           type: string
+ *         description: Filter by branch ID
  *     responses:
  *       200:
  *         description: Success
@@ -54,6 +59,38 @@ router.get('/branch-comparison', auth, dashboardController.getBranchComparison);
 
 /**
  * @swagger
+ * /api/dashboard/revenue-trend:
+ *   get:
+ *     tags: [Dashboard]
+ *     summary: GET /api/dashboard/revenue-trend - Get revenue trend for chart
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: branch_id
+ *         schema:
+ *           type: string
+ *         description: Filter by branch ID
+ *       - in: query
+ *         name: range
+ *         schema:
+ *           type: string
+ *           enum: [week, month]
+ *         description: Time range (week = 7 days, month = 30 days)
+ *     responses:
+ *       200:
+ *         description: Success
+ *       400:
+ *         description: Bad Request
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server Error
+ */
+router.get('/revenue-trend', branchAccess, dashboardController.getRevenueTrend);
+
+/**
+ * @swagger
  * /api/dashboard/revenue-chart:
  *   get:
  *     tags: [Dashboard]
@@ -80,6 +117,12 @@ router.get('/revenue-chart', branchAccess, dashboardController.getRevenueChart);
  *     summary: GET /api/dashboard/top-performers
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: branch_id
+ *         schema:
+ *           type: string
+ *         description: Filter by branch ID
  *     responses:
  *       200:
  *         description: Success

@@ -17,7 +17,7 @@ router.get('/summary', branchAccess, expenseController.getExpenseSummary);
 
 router.get('/:id', expenseController.getExpense);
 
-router.post('/', authorize('admin', 'employee'), expenseController.createExpense);
+router.post('/', branchAccess, expenseController.createExpense);
 
 router.put('/:id', authorize('admin'), expenseController.updateExpense);
 

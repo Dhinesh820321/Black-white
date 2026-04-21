@@ -65,38 +65,38 @@ export default function Employees() {
     isModalOpen.current = showModal;
   }, [showModal]);
 
+  const loadBranches = async () => {
+    try {
+      const branchRes = await branchesAPI.getAll();
+      if (branchRes?.data?.success && Array.isArray(branchRes.data.data)) {
+        setBranches(branchRes.data.data);
+      }
+    } catch (err) {
+      console.error('Failed to load branches:', err);
+    }
+  };
+
+  const loadEmployees = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await employeesAPI.getAll();
+      if (res?.data?.success && Array.isArray(res.data.data)) {
+        const employeesData = res.data.data.map(emp => ({
+          ...emp,
+          salary: emp.salary ?? 0
+        }));
+        setEmployees(employeesData);
+      }
+    } catch (err) {
+      console.error('Failed to load employees:', err);
+      setError(err.response?.data?.message || 'Failed to load employees');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const loadBranches = async () => {
-      try {
-        const branchRes = await branchesAPI.getAll();
-        if (branchRes?.data?.success && Array.isArray(branchRes.data.data)) {
-          setBranches(branchRes.data.data);
-        }
-      } catch (err) {
-        console.error('Failed to load branches:', err);
-      }
-    };
-
-    const loadEmployees = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const res = await employeesAPI.getAll();
-        if (res?.data?.success && Array.isArray(res.data.data)) {
-          const employeesData = res.data.data.map(emp => ({
-            ...emp,
-            salary: emp.salary ?? 0
-          }));
-          setEmployees(employeesData);
-        }
-      } catch (err) {
-        console.error('Failed to load employees:', err);
-        setError(err.response?.data?.message || 'Failed to load employees');
-      } finally {
-        setLoading(false);
-      }
-    };
-
     const loadData = async () => {
       await Promise.all([loadEmployees(), loadBranches()]);
     };
@@ -120,10 +120,29 @@ export default function Employees() {
     setError(null);
 
     try {
+      if (!formData.name || formData.name.trim() === '') {
+        setError('Name is required');
+        setSubmitting(false);
+        return;
+      }
+      
+      if (!formData.phone || formData.phone.trim() === '') {
+        setError('Phone number is required');
+        setSubmitting(false);
+        return;
+      }
+      
+      if (!editingEmployee && (!formData.password || formData.password.length < 6)) {
+        setError('Password must be at least 6 characters');
+        setSubmitting(false);
+        return;
+      }
+
       if (editingEmployee) {
         const { password, ...updateData } = formData;
-        const dataToSend = password ? formData : updateData;
-        await employeesAPI.update(editingEmployee.id, dataToSend);
+        const dataToSend = password ? { ...updateData, password } : updateData;
+        const empId = editingEmployee._id || editingEmployee.id;
+        await employeesAPI.update(empId, dataToSend);
       } else {
         await employeesAPI.create(formData);
       }
@@ -133,7 +152,11 @@ export default function Employees() {
       resetForm();
     } catch (err) {
       console.error('Submit error:', err);
-      setError(err.response?.data?.message || 'Operation failed. Please try again.');
+      const errorMsg = err.response?.data?.message || 
+                       err.response?.data?.error ||
+                       err.message ||
+                       'Operation failed. Please try again.';
+      setError(errorMsg);
     } finally {
       setSubmitting(false);
     }
@@ -143,13 +166,13 @@ export default function Employees() {
     setEditingEmployee(emp);
     const branchId = emp.branch_id?._id || emp.branch_id || '';
     setFormData({
-      name: emp.name,
-      role: emp.role,
-      phone: emp.phone,
+      name: emp.name || '',
+      role: emp.role || 'employee',
+      phone: emp.phone || '',
       password: '',
       branch_id: branchId,
       salary: emp.salary || 0,
-      status: emp.status
+      status: emp.status || 'active'
     });
     setError(null);
     setShowModal(true);
@@ -163,7 +186,7 @@ export default function Employees() {
       await loadEmployees();
     } catch (err) {
       console.error('Delete error:', err);
-      alert(err.response?.data?.message || 'Failed to delete employee');
+      alert(err.response?.data?.message || err.message || 'Failed to delete employee');
     }
   };
 
@@ -220,7 +243,7 @@ export default function Employees() {
           >
             <option value="all">All Branches</option>
             {branches.map(branch => (
-              <option key={branch.id || branch._id} value={branch.id || branch._id}>
+              <option key={branch._id} value={branch._id}>
                 {branch.name}
               </option>
             ))}
@@ -280,11 +303,11 @@ export default function Employees() {
                     </td>
                     {(user?.role === 'admin' || user?.role === 'manager') && (
                       <td className="px-4 py-3 text-right">
-                        <button onClick={() => handleEdit(emp)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg">
+                        <button onClick={() => handleEdit(emp)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg" title="Edit">
                           <Edit className="w-4 h-4" />
                         </button>
                         {user?.role === 'admin' && (
-                          <button onClick={() => handleDelete(emp.id || emp._id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg">
+                          <button onClick={() => handleDelete(emp._id || emp.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg">
                             <Trash2 className="w-4 h-4" />
                           </button>
                         )}
@@ -425,7 +448,7 @@ export default function Employees() {
                   >
                     <option value="">Select Branch</option>
                     {branches.map(b => (
-                      <option key={b._id || b.id} value={b._id || b.id}>{b.name}</option>
+                      <option key={b._id} value={b._id}>{b.name}</option>
                     ))}
                   </select>
                 </div>

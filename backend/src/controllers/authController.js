@@ -140,10 +140,10 @@ const employeeLogin = async (req, res, next) => {
       return errorResponse(res, 'Invalid credentials', 401);
     }
 
-    // Check if user is employee
-    if (user.role !== 'employee') {
-      console.log('❌ Not an employee:', user.role);
-      return errorResponse(res, 'Access denied. Employee login only.', 403);
+    // Check if user is admin (admins must use admin login)
+    if (user.role === 'admin') {
+      console.log('❌ Admin tried employee login:', user.role);
+      return errorResponse(res, 'Access denied. Admins must use admin login.', 403);
     }
 
     // Check if account is active
@@ -173,8 +173,8 @@ const employeeLogin = async (req, res, next) => {
     // ==================== GEOFENCING CHECK ====================
     if (ENABLE_GEOFENCING && user.geo_lat && user.geo_long) {
       if (!latitude || !longitude) {
-        console.log('❌ Location required for employee login');
-        return errorResponse(res, 'Location access required for employee login', 400);
+        console.log('❌ Location required for staff login');
+        return errorResponse(res, 'Location access required for login', 400);
       }
 
       const radius = user.geo_radius || 100;

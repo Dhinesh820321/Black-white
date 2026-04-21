@@ -102,6 +102,19 @@ router.get('/:id', invoiceController.getInvoice);
 
 router.put('/:id', invoiceController.updateInvoice);
 
+router.delete('/:id', async (req, res, next) => {
+  try {
+    const Invoice = require('../models/Invoice');
+    const invoice = await Invoice.findByIdAndDelete(req.params.id);
+    if (!invoice) {
+      return res.status(404).json({ success: false, message: 'Invoice not found' });
+    }
+    return res.json({ success: true, message: 'Invoice deleted successfully' });
+  } catch (error) {
+    next(error);
+  }
+});
+
 /**
  * @swagger
  * /api/invoices:
@@ -127,7 +140,13 @@ router.put('/:id', invoiceController.updateInvoice);
  *         description: Server Error
  */
 router.post('/', [
-  body('items').isArray({ min: 1 }).withMessage('At least one item required'),
+  body().custom((value, { req }) => {
+    const items = req.body.items || req.body.services;
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      throw new Error('At least one service item is required');
+    }
+    return true;
+  }),
   body('payment_type').isIn(['UPI', 'CASH', 'CARD']).withMessage('Invalid payment type')
 ], validate, invoiceController.createInvoice);
 

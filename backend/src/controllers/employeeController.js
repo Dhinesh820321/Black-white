@@ -38,15 +38,38 @@ const getEmployee = async (req, res, next) => {
 const createEmployee = async (req, res, next) => {
   try {
     console.log('📝 POST /employees - Request body:', req.body);
-    const { name, phone, password, branch_id, salary, geo_lat, geo_long, geo_radius, status } = req.body;
+    const { name, phone, password, branch_id, salary, role, geo_lat, geo_long, geo_radius, status } = req.body;
     
-    const processedBranchId = branch_id === '' || branch_id === undefined ? null : branch_id;
+    if (!name || name.trim() === '') {
+      return errorResponse(res, 'Name is required', 400);
+    }
+    
+    if (!phone || phone.trim() === '') {
+      return errorResponse(res, 'Phone number is required', 400);
+    }
+    
+    if (!password || password.length < 6) {
+      return errorResponse(res, 'Password must be at least 6 characters', 400);
+    }
+    
+    const normalizedPhone = phone.replace(/[\s-]/g, '');
+    
+    if (normalizedPhone.length < 10) {
+      return errorResponse(res, 'Phone number must be at least 10 digits', 400);
+    }
+    
+    const existingEmployee = await User.findByPhone(normalizedPhone);
+    if (existingEmployee) {
+      return errorResponse(res, 'An employee with this phone number already exists', 400);
+    }
+    
+    const processedBranchId = branch_id === '' || branch_id === undefined || branch_id === null ? null : branch_id;
     
     const employee = await User.create({ 
-      name, 
-      phone, 
+      name: name.trim(), 
+      phone: normalizedPhone, 
       password, 
-      role: 'employee',
+      role: role || 'employee',
       branch_id: processedBranchId, 
       salary: Number(salary) || 0,
       geo_lat,
@@ -59,7 +82,10 @@ const createEmployee = async (req, res, next) => {
     console.log('✅ Employee created:', employee);
     return successResponse(res, employee, 'Employee created successfully', 201);
   } catch (error) {
-    console.error('❌ Error creating employee:', error.message);
+    console.error('❌ Error creating employee:', error);
+    if (error.code === 11000) {
+      return errorResponse(res, 'An employee with this phone number already exists', 400);
+    }
     next(error);
   }
 };
@@ -67,7 +93,16 @@ const createEmployee = async (req, res, next) => {
 const updateEmployee = async (req, res, next) => {
   try {
     console.log(`📝 PUT /employees/${req.params.id} - Request body:`, req.body);
-    const { password, ...updateData } = req.body;
+    const { password, phone, ...updateData } = req.body;
+    
+    if (phone !== undefined && phone !== null && phone.trim() !== '') {
+      const existingEmployee = await User.findByPhone(phone.trim());
+      if (existingEmployee && existingEmployee._id.toString() !== req.params.id) {
+        return errorResponse(res, 'An employee with this phone number already exists', 400);
+      }
+      updateData.phone = phone.trim();
+    }
+    
     const employee = await User.update(req.params.id, updateData);
     if (!employee) {
       console.log('⚠️ Employee not found:', req.params.id);

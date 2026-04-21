@@ -168,6 +168,7 @@ export const inventoryAPI = {
 export const dashboardAPI = {
   getDashboard: (params) => api.get('/dashboard', { params }),
   getBranchComparison: (params) => api.get('/dashboard/branch-comparison', { params }),
+  getRevenueTrend: (params) => api.get('/dashboard/revenue-trend', { params }),
   getRevenueChart: (params) => api.get('/dashboard/revenue-chart', { params }),
   getTopPerformers: (params) => api.get('/dashboard/top-performers', { params })
 };

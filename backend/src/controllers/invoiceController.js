@@ -1,4 +1,5 @@
 const Invoice = require('../models/Invoice');
+const Customer = require('../models/Customer');
 const { successResponse, errorResponse } = require('../utils/responseHelper');
 
 const getAllInvoices = async (req, res, next) => {
@@ -51,21 +52,70 @@ const getInvoice = async (req, res, next) => {
 
 const createInvoice = async (req, res, next) => {
   try {
-    const { customer_id, items, total_amount, tax_amount, discount, final_amount, payment_type, notes } = req.body;
+    console.log('📋 CREATE INVOICE - Request body:', JSON.stringify(req.body, null, 2));
+
+    const { customer_id, mobile, customer_name, total_amount, tax_amount, discount, final_amount, payment_type, notes } = req.body;
+    const items = req.body.items || req.body.services;
     
     const employeeId = req.user._id || req.user.id;
-    let branchId = req.user.branch_id;
+    let branchId = req.body.branch_id || req.user.branch_id;
     
     if (typeof branchId === 'object' && branchId !== null) {
       branchId = branchId._id || branchId.id;
     }
 
-    console.log('📋 CREATE INVOICE:', { 
+    let finalCustomerId = customer_id || null;
+
+    // Calculate invoice amount for loyalty points
+    const invoiceAmount = Number(final_amount) || Number(total_amount) || 0;
+    const loyaltyPointsEarned = Math.floor(invoiceAmount / 100);
+
+    // Handle customer by mobile
+    if (mobile) {
+      console.log('📱 Processing customer with mobile:', mobile);
+      
+      const existingCustomer = await Customer.findByPhone(mobile);
+      console.log('📱 Existing Customer:', existingCustomer);
+
+      if (!existingCustomer) {
+        // CASE 1: NEW CUSTOMER - Create with visit_count = 0, last_visit = null
+        // Add loyalty points for first purchase even though they remain "New"
+        console.log('🆕 Creating NEW customer');
+        const newCustomer = await Customer.create({
+          name: customer_name || 'Walk-in',
+          phone: mobile,
+          last_visit: null,
+          visit_count: 0,
+          loyalty_points: loyaltyPointsEarned  // Add points for first purchase
+        });
+        finalCustomerId = newCustomer.id || newCustomer._id;
+        console.log('✅ NEW customer created with ID:', finalCustomerId, '- visit_count: 0, loyalty_points:', loyaltyPointsEarned);
+        // ❌ DO NOT update last_visit for first invoice - they remain "New"
+      } else {
+        // CASE 2: EXISTING CUSTOMER - Increment visit_count, update last_visit, add loyalty points
+        console.log('🔄 Updating EXISTING customer - recording visit');
+        await Customer.recordVisit(existingCustomer._id, invoiceAmount);
+        finalCustomerId = existingCustomer._id;
+        console.log('✅ visit_count incremented, last_visit updated, loyalty_points added for customer:', finalCustomerId);
+      }
+    } else if (customer_id && !mobile) {
+      // Handle case where customer_id is passed directly (no mobile lookup)
+      const existingCustomer = await Customer.findById(customer_id);
+      if (existingCustomer) {
+        // Record visit for existing customer
+        await Customer.recordVisit(customer_id, invoiceAmount);
+        console.log('🔄 Recorded visit for customer:', customer_id, '- loyalty points:', loyaltyPointsEarned);
+      }
+    }
+
+    console.log('📋 CREATE INVOICE - Parsed:', { 
       user: req.user?.name, 
       employeeId, 
       branchId,
-      customer_id,
-      itemCount: items?.length 
+      customer_id: finalCustomerId,
+      itemCount: items?.length,
+      payment_type,
+      total_amount
     });
 
     if (!branchId) {
@@ -76,15 +126,19 @@ const createInvoice = async (req, res, next) => {
       return errorResponse(res, 'At least one service item is required', 400);
     }
 
+    if (!payment_type || !['CASH', 'UPI', 'CARD'].includes(payment_type)) {
+      return errorResponse(res, 'Valid payment type is required (CASH, UPI, or CARD)', 400);
+    }
+
     const invoice = await Invoice.create({ 
       branch_id: branchId, 
-      customer_id: customer_id || null, 
+      customer_id: finalCustomerId, 
       employee_id: employeeId, 
       items, 
-      total_amount: total_amount || final_amount || 0, 
-      tax_amount: tax_amount || 0, 
-      discount: discount || 0, 
-      final_amount: final_amount || total_amount || 0, 
+      total_amount: Number(total_amount) || Number(final_amount) || 0, 
+      tax_amount: Number(tax_amount) || 0, 
+      discount: Number(discount) || 0, 
+      final_amount: Number(final_amount) || Number(total_amount) || 0, 
       payment_type, 
       notes 
     });
@@ -93,6 +147,7 @@ const createInvoice = async (req, res, next) => {
     return successResponse(res, invoice, 'Invoice created successfully', 201);
   } catch (error) {
     console.error('❌ CREATE INVOICE ERROR:', error.message);
+    console.error('❌ Stack:', error.stack);
     next(error);
   }
 };

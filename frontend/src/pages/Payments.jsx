@@ -2,8 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { paymentsAPI, branchesAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { cleanParams } from '../utils/cleanParams';
-import { formatCurrency, formatDateTime, getPaymentTypeColor } from '../utils/helpers';
-import { CreditCard, TrendingUp, Calendar, ChevronLeft, ChevronRight, Edit, Trash2 } from 'lucide-react';
+import { formatCurrency, formatDateTime, getPaymentTypeColor, exportToPDF } from '../utils/helpers';
+import { CreditCard, TrendingUp, Calendar, ChevronLeft, ChevronRight, Edit, Trash2, FileDown, Loader2 } from 'lucide-react';
 
 const DEFAULT_PAYMENTS = [];
 const DEFAULT_BRANCHES = [];
@@ -20,6 +20,7 @@ export default function Payments() {
   const [pagination, setPagination] = useState({ page: 1, total: 0, totalPages: 0 });
   const [editingPayment, setEditingPayment] = useState(null);
   const [deleteId, setDeleteId] = useState(null);
+  const [exporting, setExporting] = useState(false);
   const isModalOpen = useRef(false);
 
   useEffect(() => { loadData(); }, [filters]);
@@ -80,15 +81,54 @@ export default function Payments() {
 
   const paginatedPayments = payments.slice((pagination.page - 1) * ITEMS_PER_PAGE, pagination.page * ITEMS_PER_PAGE);
 
+  const handleExportPDF = () => {
+    setExporting(true);
+    try {
+      const columns = [
+        { key: 'created_at', header: 'Date', format: (val) => formatDateTime(val) },
+        { key: 'branch_name', header: 'Branch' },
+        { key: 'employee_name', header: 'Employee' },
+        { key: 'invoice_number', header: 'Invoice' },
+        { key: 'payment_type', header: 'Type' },
+        { key: 'amount', header: 'Amount', format: (val) => formatCurrency(val) },
+      ];
+      
+      const totalAmount = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
+      
+      exportToPDF({
+        title: 'Payments Report',
+        data: payments,
+        columns,
+        filename: 'payments',
+        footerData: {
+          totalCount: payments.length,
+          totalAmount
+        }
+      });
+    } finally {
+      setExporting(false);
+    }
+  };
+
   if (loading) {
     return <div className="flex justify-center p-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div></div>;
   }
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Payments</h1>
-        <p className="text-gray-600">Track all payment collections</p>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Payments</h1>
+          <p className="text-gray-600">Track all payment collections</p>
+        </div>
+        <button 
+          onClick={handleExportPDF} 
+          disabled={exporting || payments.length === 0}
+          className="btn-secondary flex items-center gap-2"
+        >
+          {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />} 
+          Export PDF
+        </button>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

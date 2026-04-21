@@ -2,8 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { invoicesAPI, servicesAPI, customersAPI, branchesAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { cleanParams } from '../utils/cleanParams';
-import { formatCurrency, formatDateTime, getPaymentTypeColor } from '../utils/helpers';
-import { Plus, Receipt, Search, Calendar, ChevronLeft, ChevronRight, Edit, Trash2 } from 'lucide-react';
+import { formatCurrency, formatDateTime, getPaymentTypeColor, exportToPDF } from '../utils/helpers';
+import { Plus, Receipt, Search, Calendar, ChevronLeft, ChevronRight, Edit, Trash2, FileDown, Loader2 } from 'lucide-react';
 
 const DEFAULT_INVOICES = [];
 const DEFAULT_SERVICES = [];
@@ -25,6 +25,7 @@ export default function Invoices() {
   const [pagination, setPagination] = useState({ page: 1, total: 0, totalPages: 0 });
   const [editingInvoice, setEditingInvoice] = useState(null);
   const [deleteId, setDeleteId] = useState(null);
+  const [exporting, setExporting] = useState(false);
   const isModalOpen = useRef(false);
 
   useEffect(() => { loadData(); }, [filters]);
@@ -109,6 +110,36 @@ export default function Invoices() {
 
   const paginatedInvoices = invoices.slice((pagination.page - 1) * ITEMS_PER_PAGE, pagination.page * ITEMS_PER_PAGE);
 
+  const handleExportPDF = () => {
+    setExporting(true);
+    try {
+      const columns = [
+        { key: 'invoice_number', header: 'Invoice #' },
+        { key: 'customer_name', header: 'Customer' },
+        { key: 'branch_name', header: 'Branch' },
+        { key: 'employee_name', header: 'Employee' },
+        { key: 'final_amount', header: 'Amount', format: (val) => formatCurrency(val) },
+        { key: 'payment_type', header: 'Payment' },
+        { key: 'created_at', header: 'Date', format: (val) => formatDateTime(val) },
+      ];
+      
+      const totalAmount = invoices.reduce((sum, inv) => sum + (inv.final_amount || 0), 0);
+      
+      exportToPDF({
+        title: 'Invoices Report',
+        data: invoices,
+        columns,
+        filename: 'invoices',
+        footerData: {
+          totalCount: invoices.length,
+          totalAmount
+        }
+      });
+    } finally {
+      setExporting(false);
+    }
+  };
+
   if (loading) {
     return <div className="flex justify-center p-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div></div>;
   }
@@ -120,9 +151,19 @@ export default function Invoices() {
           <h1 className="text-2xl font-bold text-gray-900">Invoices</h1>
           <p className="text-gray-600">Create and manage invoices</p>
         </div>
-        <button onClick={() => setShowModal(true)} className="btn-primary flex items-center gap-2">
-          <Plus className="w-4 h-4" /> New Invoice
-        </button>
+        <div className="flex gap-2">
+          <button 
+            onClick={handleExportPDF} 
+            disabled={exporting || invoices.length === 0}
+            className="btn-secondary flex items-center gap-2"
+          >
+            {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />} 
+            Export PDF
+          </button>
+          <button onClick={() => setShowModal(true)} className="btn-primary flex items-center gap-2">
+            <Plus className="w-4 h-4" /> New Invoice
+          </button>
+        </div>
       </div>
 
       <div className="card">

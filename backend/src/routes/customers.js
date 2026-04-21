@@ -15,6 +15,15 @@ router.use(auth);
 
 router.get('/', customerController.getAllCustomers);
 
+// Mobile-app specific: exact phone lookup
+router.get('/search-mobile/:phone', customerController.searchByMobile);
+
+// Atomically find or create customer (used during invoice creation)
+router.post('/find-or-create', [
+  body('phone').isMobilePhone('any').withMessage('Valid phone required')
+], validate, customerController.findOrCreate);
+
+
 /**
  * @swagger
  * /api/customers/retention-alerts:
