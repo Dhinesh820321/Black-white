@@ -7,9 +7,11 @@ import {
   ActivityIndicator,
   RefreshControl,
   ScrollView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
+import * as Location from 'expo-location';
 import { attendanceAPI } from '../api/api';
 import { useAuth } from '../context/AuthContext';
 import { Clock, MapPin, CheckCircle, LogOut, History } from 'lucide-react-native';
@@ -68,10 +70,47 @@ export default function AttendanceScreen({ navigation }) {
     fetchAttendance();
   }, [fetchAttendance]);
 
+  const getLocation = async () => {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        throw new Error('Location permission denied');
+      }
+
+      const location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.High
+      });
+
+      const result = {
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+        accuracy: location.coords.accuracy
+      };
+      console.log('📍 GPS Location obtained:', result);
+      return result;
+    } catch (error) {
+      console.log('❌ Location error:', error.message);
+      if (error.message === 'Location permission denied') {
+        throw new Error('Location permission denied. Please enable in Settings.');
+      }
+      throw new Error('Unable to get location. Please check GPS.');
+    }
+  };
+
   const handleCheckIn = async () => {
     setActionLoading(true);
+    let locationData = null;
     try {
-      const res = await attendanceAPI.checkIn({});
+      locationData = await getLocation();
+      const payload = {
+        location: `${locationData.latitude},${locationData.longitude}`,
+        latitude: locationData.latitude,
+        longitude: locationData.longitude
+      };
+      
+      console.log('📤 Check-in payload:', payload);
+      const res = await attendanceAPI.checkIn(payload);
+      
       if (res.success) {
         Alert.alert(t('success'), t('attendanceMarked'));
         fetchAttendance();
@@ -79,7 +118,9 @@ export default function AttendanceScreen({ navigation }) {
         Alert.alert(t('error'), res.message || t('error'));
       }
     } catch (error) {
-      Alert.alert(t('error'), error.response?.data?.message || t('error'));
+      console.log('❌ Check-in error:', error.message);
+      const errorMessage = error.response?.data?.message || error.message || 'Check-in failed';
+      Alert.alert('Error', errorMessage);
     } finally {
       setActionLoading(false);
     }
@@ -97,7 +138,15 @@ export default function AttendanceScreen({ navigation }) {
           onPress: async () => {
             setActionLoading(true);
             try {
-              const res = await attendanceAPI.checkOut({});
+              const locationData = await getLocation();
+              const payload = {
+                location: `${locationData.latitude},${locationData.longitude}`,
+                latitude: locationData.latitude,
+                longitude: locationData.longitude
+              };
+              
+              console.log('📤 Check-out payload:', payload);
+              const res = await attendanceAPI.checkOut(payload);
               if (res.success) {
                 Alert.alert(t('success'), t('checkedOut'));
                 fetchAttendance();
@@ -105,7 +154,9 @@ export default function AttendanceScreen({ navigation }) {
                 Alert.alert(t('error'), res.message || t('error'));
               }
             } catch (error) {
-              Alert.alert(t('error'), error.response?.data?.message || t('error'));
+              console.log('❌ Check-out error:', error.message);
+              const errorMessage = error.response?.data?.message || error.message || 'Check-out failed';
+              Alert.alert('Error', errorMessage);
             } finally {
               setActionLoading(false);
             }

@@ -120,32 +120,29 @@ export default function DashboardScreen({ navigation }) {
     todayRevenue: 0,
     todayServices: 0,
     todayCollection: 0,
+    monthlyCollection: 0,
     checkedIn: false,
     checkInTime: null,
   });
 
   const fetchDashboardData = useCallback(async () => {
     try {
-      const branchId = user?.branch_id?._id || user?.branch_id;
-      const today = new Date().toISOString().split('T')[0];
+      setLoading(true);
       
-      const [revenueRes, attendanceRes] = await Promise.all([
-        invoicesAPI.getDailyRevenue({ branch_id: branchId, date: today }),
-        attendanceAPI.getToday(),
-      ]);
-
-      console.log('📊 Dashboard Revenue Response:', JSON.stringify(revenueRes, null, 2));
-
-      if (revenueRes.success) {
-        const revenueData = revenueRes.data || {};
-        setStats(prev => ({
-          ...prev,
-          todayRevenue: parseFloat(revenueData.total) || 0,
-          todayServices: parseInt(revenueData.count) || 0,
-          todayCollection: (parseFloat(revenueData.upi) || 0) + (parseFloat(revenueData.cash) || 0) + (parseFloat(revenueData.card) || 0),
-        }));
+      // Handle branch_id - could be object with _id or direct string
+      let branchId = user?.branch_id?._id || user?.branch_id;
+      
+      // Also check for branchId (capital D)
+      if (!branchId) {
+        branchId = user?.branchId?._id || user?.branchId;
       }
-
+      
+      console.log('[Dashboard] User branch_id:', user?.branch_id);
+      console.log('[Dashboard] Using branchId:', branchId);
+      
+      // Fetch attendance (works without branch)
+      const attendanceRes = await attendanceAPI.getToday();
+      
       if (attendanceRes.success && attendanceRes.data) {
         const myAttendance = attendanceRes.data;
         
@@ -163,11 +160,57 @@ export default function DashboardScreen({ navigation }) {
           }));
         }
       }
+
+      // If no branch, skip revenue fetch
+      if (!branchId) {
+        console.log('[Dashboard] No branch assigned - skipping revenue');
+        setLoading(false);
+        return;
+      }
+      
+      const now = new Date();
+      const today = now.toISOString().split('T')[0];
+      const currentYear = now.getFullYear();
+      const currentMonth = now.getMonth() + 1;
+      
+      // Fetch daily revenue and monthly revenue in parallel
+      try {
+        const [revenueRes, monthlyRes] = await Promise.all([
+          invoicesAPI.getDailyRevenue({ branch_id: branchId, date: today }),
+          invoicesAPI.getMonthlyRevenue({ branch_id: branchId, year: currentYear, month: currentMonth }),
+        ]);
+
+        console.log('📊 Dashboard Revenue:', revenueRes);
+        console.log('📊 Monthly Revenue:', monthlyRes);
+
+        let todayRevenue = 0, todayServices = 0, todayCollection = 0;
+        if (revenueRes.success) {
+          const revenueData = revenueRes.data || {};
+          todayRevenue = parseFloat(revenueData.total) || 0;
+          todayServices = parseInt(revenueData.count) || 0;
+          todayCollection = (parseFloat(revenueData.upi) || 0) + (parseFloat(revenueData.cash) || 0) + (parseFloat(revenueData.card) || 0);
+        }
+
+        // Sum monthly collection from daily breakdown
+        let monthlyCollection = 0;
+        if (monthlyRes.success && Array.isArray(monthlyRes.data)) {
+          monthlyCollection = monthlyRes.data.reduce((sum, day) => sum + (parseFloat(day.revenue) || 0), 0);
+        }
+
+        setStats(prev => ({
+          ...prev,
+          todayRevenue,
+          todayServices,
+          todayCollection,
+          monthlyCollection,
+        }));
+      } catch (revenueErr) {
+        console.log('[Dashboard] Revenue fetch error:', revenueErr.message);
+      }
     } catch (error) {
       console.error('Dashboard error:', error);
     } finally {
       setLoading(false);
-      setRefreshing(false);
     }
   }, [user]);
 
@@ -243,8 +286,8 @@ export default function DashboardScreen({ navigation }) {
             />
             <StatCard
               title={t('collection')}
-              value={formatCurrency(stats.todayCollection)}
-              subtitle="UPI + Cash"
+              value={formatCurrency(stats.monthlyCollection)}
+              subtitle={`${new Date().toLocaleString('default', { month: 'long' })} Total`}
               icon={CreditCard}
               color="bg-blue-500"
             />
@@ -253,7 +296,7 @@ export default function DashboardScreen({ navigation }) {
           <View className="flex-row gap-3 mb-6">
             <StatCard
               title={t('status')}
-              value={stats.checkedIn ? t('completed') : t('away')}
+              value={stats.checkedIn ? t('prograss') : t('away')}
               subtitle={stats.checkInTime 
                 ? `${t('checkIn')}: ${new Date(stats.checkInTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`
                 : t('notCheckedIn')}

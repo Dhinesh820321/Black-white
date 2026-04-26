@@ -186,13 +186,14 @@ export default function Invoices() {
 
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gray-50">
+<thead className="bg-gray-50">
               <tr>
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Invoice #</th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Customer</th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Branch</th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Services</th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Employee</th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Amount</th>
+                <th className="px-4 py-3 text-right text-sm font-medium text-gray-600">Amount</th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Payment</th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Date</th>
                 <th className="px-4 py-3 text-right text-sm font-medium text-gray-600">Actions</th>
@@ -213,6 +214,9 @@ export default function Invoices() {
                     <td className="px-4 py-3 text-sm font-medium text-primary-600">{inv.invoice_number}</td>
                     <td className="px-4 py-3 text-sm text-gray-900">{inv.customer_name || '-'}</td>
                     <td className="px-4 py-3 text-sm text-gray-600">{inv.branch_name}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600 max-w-[150px] truncate" title={inv.services}>
+                      {inv.services || '-'}
+                    </td>
                     <td className="px-4 py-3 text-sm text-gray-600">{inv.employee_name}</td>
                     <td className="px-4 py-3 text-sm font-medium text-gray-900">{formatCurrency(inv.final_amount)}</td>
                     <td className="px-4 py-3">

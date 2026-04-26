@@ -87,12 +87,17 @@ export const invoicesAPI = {
   create: (data) => api.post('/invoices', data),
   update: (id, data) => api.put(`/invoices/${id}`, data),
   getDailyRevenue: (params) => api.get('/invoices/daily-revenue', { params }),
+  getMonthlyRevenue: (params) => api.get('/invoices/monthly-revenue', { params }),
 };
 
 export const expensesAPI = {
   create: (data) => api.post('/expenses', data),
   getAll: (params) => api.get('/expenses', { params }),
   getSummary: (params) => api.get('/expenses/summary', { params }),
+};
+
+export const branchesAPI = {
+  getAll: (params) => api.get('/branches', { params }),
 };
 
 export const paymentsAPI = {

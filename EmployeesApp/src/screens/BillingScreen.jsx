@@ -351,6 +351,7 @@ export default function BillingScreen() {
           const customerRes = await customersAPI.findOrCreate({
             name: customerName.trim(),
             phone: phone,
+            branch_id: user.branch_id, // Include branch_id when creating customer
           });
           if (customerRes.success && customerRes.data) {
             customerId = customerRes.data._id || customerRes.data.id;

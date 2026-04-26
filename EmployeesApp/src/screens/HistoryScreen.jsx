@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   StyleSheet,
+  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -245,9 +246,14 @@ export default function HistoryScreen() {
         <Text style={styles.headerTitle}>{t('attendanceHistory')}</Text>
       </View>
 
-      <View style={styles.filterContainer}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.filterScrollContainer}
+        contentContainerStyle={styles.filterContentContainer}
+      >
         {FILTERS.map(renderFilterButton)}
-      </View>
+      </ScrollView>
 
       {loading && attendance.length === 0 ? (
         <View style={styles.loadingContainer}>
@@ -289,12 +295,15 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#111827',
   },
-  filterContainer: {
-    flexDirection: 'row',
+  filterScrollContainer: {
+    flexGrow: 0,
+    backgroundColor: '#ffffff',
+  },
+  filterContentContainer: {
     paddingHorizontal: 20,
     paddingVertical: 12,
-    backgroundColor: '#ffffff',
-    gap: 8,
+    gap: 10,
+    paddingRight: 30,
   },
   filterButton: {
     paddingHorizontal: 16,

@@ -49,20 +49,25 @@ class User {
   }
 
   static async create(data) {
+    const plainPassword = data.saveAsPlain ? data.password : null;
+    if (data.saveAsPlain) delete data.saveAsPlain;
     if (data.password && !data.password.startsWith('$2')) {
       data.password = await bcrypt.hash(data.password, 10);
     }
     const user = new UserModel(data);
     const saved = await user.save();
-    return saved.toObject();
+    const result = saved.toObject();
+    if (plainPassword) {
+      result.password = plainPassword;
+    }
+    return result;
   }
 
   static async update(id, data) {
     if (!mongoose.Types.ObjectId.isValid(id)) return null;
-    if (data.password && !data.password.startsWith('$2')) {
-      data.password = await bcrypt.hash(data.password, 10);
-    }
-    return UserModel.findByIdAndUpdate(id, { $set: data }, { new: true }).lean();
+    if (data.saveAsPlain !== undefined) delete data.saveAsPlain;
+    const employee = await UserModel.findByIdAndUpdate(id, { $set: data }, { new: true }).lean();
+    return employee;
   }
 
   static async delete(id) {

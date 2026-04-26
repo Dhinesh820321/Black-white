@@ -84,25 +84,51 @@ export default function Payments() {
   const handleExportPDF = () => {
     setExporting(true);
     try {
-      const columns = [
-        { key: 'created_at', header: 'Date', format: (val) => formatDateTime(val) },
-        { key: 'branch_name', header: 'Branch' },
-        { key: 'employee_name', header: 'Employee' },
-        { key: 'invoice_number', header: 'Invoice' },
-        { key: 'payment_type', header: 'Type' },
-        { key: 'amount', header: 'Amount', format: (val) => formatCurrency(val) },
-      ];
+      const selectedBranch = branches.find(b => b._id === filters.branch_id);
+      const branchName = selectedBranch?.name || 'All Branches';
+      const dateStr = filters.date || new Date().toISOString().split('T')[0];
+      const dateRange = `${dateStr}`;
       
-      const totalAmount = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
+      const cashPayments = payments.filter(p => p.payment_type === 'CASH');
+      const upiPayments = payments.filter(p => p.payment_type === 'UPI');
+      
+      const totalCash = cashPayments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+      const totalUPI = upiPayments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+      const grandTotal = totalCash + totalUPI;
+      
+      const formatForPDF = (paymentArray) => paymentArray.map(p => [
+        formatDateTime(p.created_at),
+        p.branch_name || '-',
+        p.employee_name || '-',
+        p.services && p.services !== 'No Service' ? p.services : 'N/A',
+        p.payment_type || '-',
+        'Rs. ' + (Number(p.amount) || 0).toFixed(2)
+      ]);
       
       exportToPDF({
-        title: 'Payments Report',
+        title: 'Payment Report',
         data: payments,
-        columns,
         filename: 'payments',
-        footerData: {
-          totalCount: payments.length,
-          totalAmount
+        reportType: 'expenses_summary',
+        tableColumns: ['Date', 'Branch', 'Employee', 'Services', 'Type', 'Amount'],
+        branchName: branchName,
+        dateRange: dateRange,
+        sections: {
+          cash: {
+            title: 'Cash Payments',
+            data: formatForPDF(cashPayments),
+            total: totalCash
+          },
+          upi: {
+            title: 'UPI Payments',
+            data: formatForPDF(upiPayments),
+            total: totalUPI
+          },
+          summary: {
+            totalCash,
+            totalUPI,
+            grandTotal
+          }
         }
       });
     } finally {
@@ -212,7 +238,7 @@ export default function Payments() {
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Date</th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Branch</th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Employee</th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Invoice</th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Services</th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Type</th>
                 <th className="px-4 py-3 text-right text-sm font-medium text-gray-600">Amount</th>
                 <th className="px-4 py-3 text-right text-sm font-medium text-gray-600">Actions</th>
@@ -233,7 +259,11 @@ export default function Payments() {
                     <td className="px-4 py-3 text-sm text-gray-600">{formatDateTime(payment.created_at)}</td>
                     <td className="px-4 py-3 text-sm text-gray-900">{payment.branch_name}</td>
                     <td className="px-4 py-3 text-sm text-gray-600">{payment.employee_name}</td>
-                    <td className="px-4 py-3 text-sm text-primary-600">{payment.invoice_number || '-'}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600 max-w-[150px] truncate" title={payment.services}>
+                    {payment.services && payment.services.length > 0 
+                      ? payment.services 
+                      : 'No Service'}
+                  </td>
                     <td className="px-4 py-3">
                       <span className={`px-2 py-1 text-xs font-medium rounded-full ${getPaymentTypeColor(payment.payment_type)}`}>
                         {payment.payment_type}

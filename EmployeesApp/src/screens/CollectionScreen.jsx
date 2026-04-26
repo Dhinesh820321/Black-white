@@ -81,9 +81,10 @@ function EntryItem({ entry, index, type }) {
   );
 }
 
-function ExpenseItem({ expense, index }) {
+function ExpenseItem({ expense, index, onPress }) {
+  const amount = Number(expense.grand_total) || Number(expense.amount) || 0;
   return (
-    <View style={styles.expenseItem}>
+    <TouchableOpacity style={styles.expenseItem} onPress={() => onPress(expense)} activeOpacity={0.7}>
       <View style={styles.expenseLeft}>
         <Text style={styles.expenseIndex}>{index + 1}</Text>
         <View style={styles.expenseDetails}>
@@ -91,8 +92,8 @@ function ExpenseItem({ expense, index }) {
           <Text style={styles.expenseMeta}>{expense.time}</Text>
         </View>
       </View>
-      <Text style={styles.expenseAmount}>{formatCurrency(expense.amount)}</Text>
-    </View>
+      <Text style={styles.expenseAmount}>{formatCurrency(amount)}</Text>
+    </TouchableOpacity>
   );
 }
 
@@ -104,6 +105,15 @@ export default function CollectionScreen() {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [data, setData] = useState(null);
   const [activeTab, setActiveTab] = useState('summary');
+  const [selectedExpense, setSelectedExpense] = useState(null);
+
+  const openExpenseDetails = (expense) => {
+    setSelectedExpense(expense);
+  };
+
+  const closeExpenseDetails = () => {
+    setSelectedExpense(null);
+  };
 
   const fetchCollection = useCallback(async (refresh = false) => {
     if (refresh) setRefreshing(true);
@@ -229,6 +239,13 @@ export default function CollectionScreen() {
               color={COLORS.primary}
               bgColor="#dbeafe"
             />
+               <SummaryCard
+              title="Expenses"
+              amount={data?.totalExpense || 0}
+              icon={ArrowDownRight}
+              color={COLORS.danger}
+              bgColor="#fee2e2"
+            />
             <SummaryCard
               title="Total Collection"
               amount={data?.totalCollection || 0}
@@ -236,13 +253,7 @@ export default function CollectionScreen() {
               color="#7c3aed"
               bgColor="#ede9fe"
             />
-            <SummaryCard
-              title="Expenses"
-              amount={data?.totalExpense || 0}
-              icon={ArrowDownRight}
-              color={COLORS.danger}
-              bgColor="#fee2e2"
-            />
+         
 
             <View style={styles.statsRow}>
               <View style={styles.statItem}>
@@ -312,7 +323,7 @@ export default function CollectionScreen() {
             </View>
             {(data?.expenses?.length || 0) > 0 ? (
               data.expenses.map((expense, index) => (
-                <ExpenseItem key={expense._id || index} expense={expense} index={index} />
+                <ExpenseItem key={expense._id || index} expense={expense} index={index} onPress={openExpenseDetails} />
               ))
             ) : (
               <View style={styles.emptyState}>
@@ -324,6 +335,49 @@ export default function CollectionScreen() {
 
         <View style={styles.bottomPadding} />
       </ScrollView>
+
+      {selectedExpense && (
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity style={styles.modalBackdrop} onPress={closeExpenseDetails} activeOpacity={1} />
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Expense Details</Text>
+              <TouchableOpacity onPress={closeExpenseDetails}>
+                <Text style={styles.modalClose}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.modalSubtitle}>{selectedExpense.title}</Text>
+            <Text style={styles.modalDate}>{selectedExpense.date} • {selectedExpense.time}</Text>
+            <View style={styles.modalDivider} />
+            <Text style={styles.modalSectionTitle}>Items</Text>
+            <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={true}>
+              {selectedExpense.items?.length > 0 ? (
+                selectedExpense.items.map((item, idx) => (
+                  <View key={idx} style={styles.modalItemRow}>
+                    <Text style={styles.modalItemIndex}>{idx + 1}.</Text>
+                    <Text style={styles.modalItemName}>{item.itemName}</Text>
+                    <Text style={styles.modalItemCalc}>
+                      {item.quantity} x Rs. {item.price} = Rs. {((item.quantity || 1) * (item.price || 0)).toFixed(0)}
+                    </Text>
+                  </View>
+                ))
+              ) : (
+                <Text style={styles.emptyText}>No items in this expense</Text>
+              )}
+            </ScrollView>
+            <View style={styles.modalDivider} />
+            <View style={styles.modalTotalRow}>
+              <Text style={styles.modalTotalLabel}>Total</Text>
+              <Text style={styles.modalTotalValue}>
+                {formatCurrency(Number(selectedExpense.grand_total) || Number(selectedExpense.amount) || 0)}
+              </Text>
+            </View>
+            <TouchableOpacity style={styles.modalButton} onPress={closeExpenseDetails}>
+              <Text style={styles.modalButtonText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -657,6 +711,118 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 14,
     color: '#9ca3af',
+  },
+  modalOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalBackdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalContent: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 20,
+    width: '90%',
+    maxHeight: '70%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1f2937',
+  },
+  modalClose: {
+    fontSize: 20,
+    color: '#6b7280',
+    padding: 4,
+  },
+  modalSubtitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#374151',
+  },
+  modalDate: {
+    fontSize: 13,
+    color: '#6b7280',
+    marginTop: 4,
+  },
+  modalDivider: {
+    height: 1,
+    backgroundColor: '#e5e7eb',
+    marginVertical: 12,
+  },
+  modalSectionTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 8,
+  },
+  modalScroll: {
+    maxHeight: 200,
+  },
+  modalItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
+  },
+  modalItemIndex: {
+    fontSize: 13,
+    color: '#6b7280',
+    width: 24,
+  },
+  modalItemName: {
+    fontSize: 14,
+    color: '#374151',
+    flex: 1,
+  },
+  modalItemCalc: {
+    fontSize: 13,
+    color: '#6b7280',
+  },
+  modalTotalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  modalTotalLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1f2937',
+  },
+  modalTotalValue: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#dc2626',
+  },
+  modalButton: {
+    backgroundColor: '#0ea5e9',
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  modalButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
   },
   bottomPadding: {
     height: 20,

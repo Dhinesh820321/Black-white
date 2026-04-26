@@ -53,13 +53,20 @@ const getExpense = async (req, res, next) => {
 
 const createExpense = async (req, res, next) => {
   try {
-    console.log('📥 CREATE EXPENSE - Request body:', req.body);
+    console.log('📥 CREATE EXPENSE - Request body:', JSON.stringify(req.body, null, 2));
     console.log('📥 CREATE EXPENSE - User:', req.user?.id, req.user?.name, req.user?.role, req.user?.branch_id);
     
-    const { title, amount, payment_mode, notes } = req.body;
+    // Support new items array format OR old single item format
+    const { title, amount, items, grand_total, payment_mode, notes, branch_id: requestedBranchId } = req.body;
     
     const employeeId = req.user._id || req.user.id;
     let branchId = req.user.branch_id;
+    
+    // Helpers can specify their own branch
+    if (req.user.role === 'helper' && requestedBranchId) {
+      branchId = requestedBranchId;
+      console.log('📥 Helper selected branch:', branchId);
+    }
     
     if (!employeeId) {
       console.error('❌ employee_id is missing from user');
@@ -74,29 +81,71 @@ const createExpense = async (req, res, next) => {
       console.error('❌ branch_id is missing for user:', req.user?.name);
       return errorResponse(res, 'No branch assigned. Please contact your admin to assign a branch.', 400);
     }
-    if (!title || !title.trim()) {
-      console.error('❌ title is missing');
-      return errorResponse(res, 'Title is required', 400);
-    }
-    if (!amount || parseFloat(amount) <= 0) {
-      console.error('❌ invalid amount');
-      return errorResponse(res, 'Valid amount is required', 400);
-    }
-    if (!payment_mode || !['CASH', 'UPI'].includes(payment_mode)) {
+    
+    if (!payment_mode || !['CASH', 'UPI', 'GPAY'].includes(payment_mode)) {
       console.error('❌ invalid payment_mode');
-      return errorResponse(res, 'Payment mode must be CASH or UPI', 400);
+      return errorResponse(res, 'Payment mode must be CASH, UPI or GPAY', 400);
     }
     
-    const expense = await Expense.create({
+    let expenseData = {
       branch_id: branchId,
       employee_id: employeeId,
-      title: title.trim(),
-      amount: parseFloat(amount),
       payment_mode,
       notes: notes?.trim() || ''
-    });
+    };
+    
+    // NEW FORMAT: Items array with grand_total
+    if (items && Array.isArray(items) && items.length > 0) {
+      // Clean and validate items
+      const validItems = items.filter(item => 
+        item.itemName && item.itemName.trim() && 
+        item.price && parseFloat(item.price) > 0
+      );
+      
+      if (validItems.length === 0) {
+        return errorResponse(res, 'At least one valid item is required', 400);
+      }
+      
+      // Calculate subtotals for each item
+      expenseData.items = validItems.map(item => ({
+        itemName: item.itemName.trim(),
+        price: parseFloat(item.price),
+        quantity: parseInt(item.quantity) || 1,
+        subtotal: parseFloat(item.price) * (parseInt(item.quantity) || 1)
+      }));
+      
+      // Calculate grand_total - use provided value or calculate from items
+      expenseData.grand_total = grand_total ? parseFloat(grand_total) : expenseData.items.reduce((sum, item) => sum + item.subtotal, 0);
+      
+      // Use title from frontend if provided, otherwise generate from items
+      if (title && title.trim()) {
+        expenseData.title = title.trim();
+      } else if (expenseData.items.length === 1) {
+        expenseData.title = expenseData.items[0].itemName;
+      } else if (expenseData.items.length === 2) {
+        expenseData.title = expenseData.items.map(i => i.itemName).join(' & ');
+      } else {
+        expenseData.title = `${expenseData.items[0].itemName} + ${expenseData.items.length - 1} more`;
+      }
+    } 
+    // OLD FORMAT: Single title and amount (backward compatibility)
+    else if (title && title.trim()) {
+      if (!amount || parseFloat(amount) <= 0) {
+        return errorResponse(res, 'Valid amount is required', 400);
+      }
+      expenseData.title = title.trim();
+      expenseData.amount = parseFloat(amount);
+      expenseData.grand_total = parseFloat(amount);
+    } 
+    else {
+      return errorResponse(res, 'Either items array or title is required', 400);
+    }
+    
+    const expense = await Expense.create(expenseData);
     
     console.log('✅ Expense created:', expense._id);
+    console.log('✅ Items:', expense.items);
+    console.log('✅ Grand Total:', expense.grand_total);
     return successResponse(res, expense, 'Expense recorded successfully', 201);
   } catch (error) {
     console.error('❌ CREATE EXPENSE ERROR:', error);

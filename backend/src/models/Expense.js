@@ -1,12 +1,20 @@
 const mongoose = require('mongoose');
 
+const expenseItemSchema = new mongoose.Schema({
+  itemName: { type: String, required: true },
+  price: { type: Number, required: true },
+  quantity: { type: Number, required: true, default: 1 },
+  subtotal: { type: Number, required: true }
+}, { _id: false });
+
 const expenseSchema = new mongoose.Schema({
   branch_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch', required: true },
   employee_id: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   category_id: { type: mongoose.Schema.Types.ObjectId, ref: 'ExpenseCategory', default: null },
-  title: { type: String, required: true },
-  amount: { type: Number, required: true },
-  payment_mode: { type: String, enum: ['CASH', 'UPI'], default: 'CASH', required: true },
+  title: { type: String, default: '' },
+  items: { type: [expenseItemSchema], default: [] },
+  grand_total: { type: Number, required: true },
+  payment_mode: { type: String, enum: ['CASH', 'UPI', 'GPAY'], default: 'CASH', required: true },
   notes: { type: String, default: '' },
   receipt_image: { type: String }
 }, {
@@ -54,6 +62,16 @@ class Expense {
   }
 
   static async create(data) {
+    // Ensure grand_total is calculated if items provided
+    if (data.items && data.items.length > 0) {
+      data.grand_total = data.items.reduce((sum, item) => sum + (item.subtotal || 0), 0);
+      // Generate title from items if not provided
+      if (!data.title && data.items.length === 1) {
+        data.title = data.items[0].itemName;
+      } else if (!data.title && data.items.length > 1) {
+        data.title = `${data.items.length} items`;
+      }
+    }
     const expense = new ExpenseModel(data);
     await expense.save();
     return expense.toObject();
@@ -81,7 +99,7 @@ class Expense {
         payment_mode: 'CASH',
         created_at: { $gte: start, $lt: end } 
       }},
-      { $group: { _id: null, total: { $sum: '$amount' }, count: { $sum: 1 } } }
+      { $group: { _id: null, total: { $sum: '$grand_total' }, count: { $sum: 1 } } }
     ]);
 
     const onlineExpenses = await ExpenseModel.aggregate([
@@ -108,7 +126,7 @@ class Expense {
       { $group: {
         _id: '$category_id',
         category_name: { $first: '$category.name' },
-        total: { $sum: '$amount' },
+        total: { $sum: '$grand_total' },
         count: { $sum: 1 }
       }},
       { $project: { category_id: '$_id', category_name: 1, total: 1, count: 1, _id: 0 } }

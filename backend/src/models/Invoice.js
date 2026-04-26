@@ -47,6 +47,7 @@ class Invoice {
       .populate('employee_id', 'name')
       .populate('customer_id', 'name')
       .populate('branch_id', 'name')
+      .populate('items.service_id', 'name')
       .sort({ created_at: -1 }).lean();
   }
 
@@ -78,6 +79,23 @@ class Invoice {
         invoice_number: invoiceNumber 
       });
       await invoice.save();
+
+      // Update customer branchId if not set
+      if (data.customer_id && data.branch_id) {
+        try {
+          const CustomerModel = mongoose.model('Customer');
+          const customer = await CustomerModel.findById(data.customer_id);
+          
+          // Only set branchId if customer doesn't have one
+          if (customer && !customer.branchId) {
+            await CustomerModel.findByIdAndUpdate(data.customer_id, {
+              branchId: data.branch_id
+            });
+          }
+        } catch (custErr) {
+          console.error('Failed to update customer branch:', custErr.message);
+        }
+      }
 
       // NOTE: last_visit is now handled by invoiceController
       // Do NOT update last_visit here to avoid duplicate updates

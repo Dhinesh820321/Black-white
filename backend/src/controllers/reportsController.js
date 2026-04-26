@@ -64,13 +64,17 @@ const getDailyReport = async (req, res, next) => {
 const getMonthlyReport = async (req, res, next) => {
   try {
     const { branch_id, year, month } = req.query;
+    console.log('📊 Monthly Report Request:', { branch_id, year, month });
+    
     const now = new Date();
     const targetYear = parseInt(year) || now.getFullYear();
-    const targetMonth = parseInt(month) || now.getMonth() + 1;
-
+    const targetMonth = parseInt(month) || (now.getMonth() + 1);
+    
     const startDate = new Date(targetYear, targetMonth - 1, 1);
     startDate.setHours(0, 0, 0, 0);
     const endDate = new Date(targetYear, targetMonth, 0, 23, 59, 59);
+    
+    console.log('📊 Date Range:', { start: startDate.toISOString(), end: endDate.toISOString() });
 
     const InvoiceModel = mongoose.model('Invoice');
     const ExpenseModel = mongoose.model('Expense');
@@ -81,7 +85,10 @@ const getMonthlyReport = async (req, res, next) => {
     };
     if (branch_id && mongoose.Types.ObjectId.isValid(branch_id)) {
       matchFilter.branch_id = new mongoose.Types.ObjectId(branch_id);
+      console.log('📊 Filtering by branch:', branch_id);
     }
+
+    console.log('📊 Invoice match filter:', matchFilter);
 
     const summaryStats = await InvoiceModel.aggregate([
       { $match: matchFilter },
@@ -97,6 +104,8 @@ const getMonthlyReport = async (req, res, next) => {
         cash: { $sum: { $cond: [{ $eq: ['$payment_type', 'CASH'] }, '$final_amount', 0] } }
       }}
     ]);
+
+    console.log('📊 Invoice aggregation result:', summaryStats[0]);
 
     const summary = summaryStats[0] || { 
       revenue: 0, 
@@ -116,10 +125,14 @@ const getMonthlyReport = async (req, res, next) => {
       expenseMatch.branch_id = new mongoose.Types.ObjectId(branch_id);
     }
 
+    console.log('📊 Expense match filter:', expenseMatch);
+
     const expenseStats = await ExpenseModel.aggregate([
       { $match: expenseMatch },
-      { $group: { _id: null, total: { $sum: '$amount' }, count: { $sum: 1 } } }
+      { $group: { _id: null, total: { $sum: '$grand_total' }, count: { $sum: 1 } } }
     ]);
+
+    console.log('📊 Expense aggregation result:', expenseStats[0]);
 
     const totalExpenses = expenseStats[0]?.total || 0;
 
@@ -218,7 +231,7 @@ const getBranchPerformanceReport = async (req, res, next) => {
 
       const expenseStats = await ExpenseModel.aggregate([
         { $match: expenseMatch },
-        { $group: { _id: null, total: { $sum: '$amount' } } }
+        { $group: { _id: null, total: { $sum: '$grand_total' } } }
       ]);
 
       const revenue = invoiceStats[0]?.revenue || 0;
@@ -264,20 +277,33 @@ const getBranchPerformanceReport = async (req, res, next) => {
 const getEmployeePerformanceReport = async (req, res, next) => {
   try {
     const { start_date, end_date, branch_id } = req.query;
+    console.log('📊 Employee Report Request:', { start_date, end_date, branch_id });
     
     const today = new Date();
-    const startDate = start_date 
-      ? new Date(start_date) 
-      : new Date(today.getFullYear(), today.getMonth(), 1);
-    const endDate = end_date 
-      ? new Date(end_date) 
-      : today;
+    let startDate, endDate;
+    
+    if (start_date) {
+      const [y, m, d] = start_date.split('-').map(Number);
+      startDate = new Date(y, m - 1, d);
+    } else {
+      startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+    }
+    
+    if (end_date) {
+      const [y, m, d] = end_date.split('-').map(Number);
+      endDate = new Date(y, m - 1, d);
+    } else {
+      endDate = new Date(today);
+    }
+    
+    startDate.setHours(0, 0, 0, 0);
     endDate.setHours(23, 59, 59, 999);
 
     const InvoiceModel = mongoose.model('Invoice');
     const UserModel = mongoose.model('User');
+    const BranchModel = mongoose.model('Branch');
 
-    const employeeFilter = { role: 'employee', status: 'active' };
+    const employeeFilter = { role: 'employee' };
     if (branch_id && mongoose.Types.ObjectId.isValid(branch_id)) {
       employeeFilter.branch_id = new mongoose.Types.ObjectId(branch_id);
     }
@@ -286,11 +312,17 @@ const getEmployeePerformanceReport = async (req, res, next) => {
       .populate('branch_id', 'name')
       .lean();
 
+    console.log('📊 Date Range:', startDate.toISOString(), 'to', endDate.toISOString());
+    console.log('📊 Employees found:', employees.length);
+
     const performanceData = await Promise.all(employees.map(async (emp) => {
+      const empId = emp._id;
+      const empIdStr = emp._id.toString();
+      
       const invoiceMatch = {
         created_at: { $gte: startDate, $lte: endDate },
         status: 'completed',
-        employee_id: emp._id
+        $or: [{ employee_id: empId }, { employee_id: empIdStr }]
       };
 
       const invoiceStats = await InvoiceModel.aggregate([
@@ -303,33 +335,36 @@ const getEmployeePerformanceReport = async (req, res, next) => {
       ]);
 
       const serviceCount = await InvoiceModel.aggregate([
-        { $match: invoiceMatch },
+        { $match: {
+          created_at: { $gte: startDate, $lte: endDate },
+          status: 'completed',
+          $or: [{ employee_id: empId }, { employee_id: empIdStr }]
+        }},
         { $unwind: '$items' },
         { $group: { _id: null, count: { $sum: '$items.quantity' } } }
       ]);
 
+      const revenue = invoiceStats[0]?.revenue || 0;
+      const totalServices = serviceCount[0]?.count || invoiceStats[0]?.totalServices || 0;
+      const avgPerService = totalServices > 0 ? revenue / totalServices : 0;
+
       return {
-        _id: emp._id,
-        id: emp._id,
+        _id: empId,
+        id: empId,
         name: emp.name,
         phone: emp.phone,
         role: emp.role,
         branch_name: emp.branch_id?.name || 'N/A',
-        revenue: invoiceStats[0]?.revenue || 0,
-        totalServices: serviceCount[0]?.count || invoiceStats[0]?.totalServices || 0,
-        totalInvoices: invoiceStats[0]?.totalServices || 0,
-        avgPerService: serviceCount[0]?.count > 0 
-          ? parseFloat((invoiceStats[0]?.revenue / serviceCount[0].count).toFixed(2)) 
-          : 0
+        revenue: revenue,
+        totalServices: totalServices,
+        avgPerService: avgPerService
       };
     }));
 
-    const sortedData = performanceData.sort((a, b) => b.revenue - a.revenue);
+    const filteredData = performanceData.filter(e => e.totalServices > 0 || e.revenue > 0);
+    const sortedData = filteredData.sort((a, b) => b.revenue - a.revenue);
 
-    console.log('Employee Performance:', { 
-      employees: sortedData.length,
-      topPerformer: sortedData[0]?.name
-    });
+    console.log('📊 Results with data:', sortedData.length);
 
     return successResponse(res, {
       period: { start_date: startDate.toISOString(), end_date: endDate.toISOString() },
@@ -424,13 +459,16 @@ const getDailyCollection = async (req, res, next) => {
       _id: exp._id,
       title: exp.title,
       amount: exp.amount,
+      grand_total: exp.grand_total,
       payment_mode: exp.payment_mode,
       employee_name: exp.employee_id?.name || 'N/A',
       time: new Date(exp.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
-      created_at: exp.created_at
+      date: new Date(exp.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }),
+      created_at: exp.created_at,
+      items: exp.items || []
     }));
 
-    const totalExpense = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+    const totalExpense = expenses.reduce((sum, e) => sum + (Number(e.grand_total) || Number(e.amount) || 0), 0);
     const totalCollection = totalCash + totalUPI;
     const balance = totalCollection - totalExpense;
 

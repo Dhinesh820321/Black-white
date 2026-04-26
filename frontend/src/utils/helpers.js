@@ -99,7 +99,7 @@ export const getPaymentTypeColor = (type) => {
   return colors[type] || colors.CASH;
 };
 
-export const exportToPDF = ({ title, data, columns, filename, footerData }) => {
+export const exportToPDF = ({ title, data, columns, filename, footerData, reportType, sections, tableColumns, branchName, dateRange }) => {
   if (!data || data.length === 0) {
     alert('No data to export');
     return;
@@ -112,9 +112,10 @@ export const exportToPDF = ({ title, data, columns, filename, footerData }) => {
 
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 14;
     
     // Use helvetica - handle rupee symbol specially
-    const formatCurrencyForPDF = (amount) => {
+const formatCurrencyForPDF = (amount) => {
       if (amount === null || amount === undefined) return 'Rs. 0.00';
       return 'Rs. ' + new Intl.NumberFormat('en-IN', {
         minimumFractionDigits: 2,
@@ -133,74 +134,241 @@ export const exportToPDF = ({ title, data, columns, filename, footerData }) => {
     
     doc.setFontSize(10);
     doc.setTextColor(100);
-    doc.text(`Exported on: ${format(new Date(), 'dd MMM yyyy, hh:mm a')}`, 14, 30);
+    doc.text(`Exported on: ${format(new Date(), 'dd MMM yyyy, hh:mm a')}`, margin, 30);
     
-    // Prepare table data - replace currency formatting with PDF-safe version
-    const tableRows = data.map(item => {
-      return columns.map(col => {
-        let value = item[col.key];
-        if (col.key === 'amount' && typeof value === 'number') {
-          value = formatCurrencyForPDF(value);
-        } else if (col.format) {
-          const formatted = col.format(value, item);
-          if (typeof formatted === 'string' && formatted.includes('₹')) {
-            value = formatted.replace('₹', 'Rs. ');
-          } else {
-            value = formatted;
-          }
-        } else if (value === null || value === undefined) {
-          value = '-';
-        }
-        return String(value);
+    // Add Branch Name and Date Range if provided
+    let headerY = 36;
+    if (branchName) {
+      doc.setFontSize(10);
+      doc.setTextColor(0);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`Branch: ${branchName}`, margin, headerY);
+      headerY += 6;
+    }
+    if (dateRange) {
+      doc.setFontSize(10);
+      doc.setTextColor(0);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Date Range: ${dateRange}`, margin, headerY);
+    }
+
+    let startY = branchName || dateRange ? headerY + 6 : 38;
+
+    // Handle summary report type
+    if (reportType === 'expenses_summary' && sections) {
+      // Services column needs to be wider, Amount column right-aligned
+      const tableCols = tableColumns || ['Date', 'Description', 'Employee', 'Amount'];
+      const hasServices = tableCols.includes('Services');
+      
+      // Define column widths - Services gets wider column
+      const colWidths = hasServices 
+        ? { 0: 25, 1: 35, 2: 30, 3: 55, 4: 20, 5: 25 }  // Date, Branch, Employee, Services, Type, Amount
+        : { 0: 25, 1: 45, 2: 40, 3: 25 };
+      
+      // Cash Expenses Section
+      if (sections.cash.data.length > 0) {
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(0);
+        doc.text(sections.cash.title, margin, startY);
+        startY += 7;
+        
+        doc.autoTable({
+          head: [tableCols],
+          body: sections.cash.data,
+          startY,
+          styles: { 
+            fontSize: 8, 
+            cellPadding: 2,
+            overflow: 'linebreak',
+            cellWidth: 'wrap'
+          },
+          headStyles: { 
+            fillColor: [34, 139, 34], 
+            textColor: [255, 255, 255], 
+            fontStyle: 'bold' 
+          },
+          columnStyles: hasServices ? {
+            3: { cellWidth: 55 }, // Services - wider
+            5: { halign: 'right', cellWidth: 25 }  // Amount - right aligned
+          } : {
+            3: { halign: 'right' }
+          },
+          margin: { left: margin, right: margin },
+        });
+        
+        startY = doc.lastAutoTable.finalY + 5;
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.text(`Total Cash: Rs. ${sections.cash.total.toFixed(2)}`, pageWidth - margin, startY, { align: 'right' });
+        startY += 10;
+      }
+      
+      // UPI Expenses Section
+      if (sections.upi.data.length > 0) {
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(0);
+        doc.text(sections.upi.title, margin, startY);
+        startY += 7;
+        
+        doc.autoTable({
+          head: [tableCols],
+          body: sections.upi.data,
+          startY,
+          styles: { 
+            fontSize: 8, 
+            cellPadding: 2,
+            overflow: 'linebreak',
+            cellWidth: 'wrap'
+          },
+          headStyles: { 
+            fillColor: [65, 105, 225], 
+            textColor: [255, 255, 255], 
+            fontStyle: 'bold' 
+          },
+          columnStyles: hasServices ? {
+            3: { cellWidth: 55 }, // Services - wider
+            5: { halign: 'right', cellWidth: 25 }  // Amount - right aligned
+          } : {
+            3: { halign: 'right' }
+          },
+          margin: { left: margin, right: margin },
+        });
+        
+        startY = doc.lastAutoTable.finalY + 5;
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.text(`Total UPI: Rs. ${sections.upi.total.toFixed(2)}`, pageWidth - margin, startY, { align: 'right' });
+        startY += 10;
+      }
+      
+      // Summary Section
+      doc.setFillColor(245, 247, 250);
+      doc.rect(margin, startY, pageWidth - (margin * 2), 25, 'F');
+      startY += 8;
+      
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Summary', margin, startY);
+      startY += 8;
+      
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Total Cash: Rs. ${sections.summary.totalCash.toFixed(2)}`, margin + 5, startY);
+      startY += 6;
+      doc.text(`Total UPI: Rs. ${sections.summary.totalUPI.toFixed(2)}`, margin + 5, startY);
+      startY += 8;
+      
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(12);
+      doc.text(`Grand Total: Rs. ${sections.summary.grandTotal.toFixed(2)}`, margin + 5, startY);
+      
+    } else if (reportType === 'employee') {
+      const tableCols = tableColumns || ['#', 'Name', 'Branch', 'Services', 'Revenue'];
+      const tableRows = data.map((item, idx) => [
+        idx + 1,
+        item.name || '-',
+        item.branch_name || '-',
+        item.totalServices || 0,
+        (item.revenue || 0).toFixed(2)
+      ]);
+      
+      doc.autoTable({
+        head: [tableCols],
+        body: tableRows,
+        startY: 35,
+        styles: { fontSize: 9, cellPadding: 3, halign: 'center' },
+        headStyles: { fillColor: [59, 130, 246], textColor: [255, 255, 255], fontStyle: 'bold' },
+        margin: { left: margin, right: margin },
       });
-    });
-
-    console.log('📄 Table rows prepared:', tableRows.length);
-
-    // Use doc.autoTable instead of autoTable(doc, ...)
-    doc.autoTable({
-      head: [columns.map(col => col.header)],
-      body: tableRows,
-      startY: 35,
-      styles: {
-        fontSize: 9,
-        cellPadding: 3,
-        lineColor: [200, 200, 200],
-        lineWidth: 0.1,
-      },
-      headStyles: {
-        fillColor: [59, 130, 246],
-        textColor: [255, 255, 255],
-        fontStyle: 'bold',
-      },
-      alternateRowStyles: {
-        fillColor: [249, 250, 251],
-      },
-      margin: { left: 14, right: 14 },
-    });
-
-    console.log('📄 AutoTable rendered');
-
-    // Footer
-    const finalY = doc.lastAutoTable.finalY + 10;
+      
+      const finalY = doc.lastAutoTable.finalY + 10;
+      const totalRevenue = data.reduce((sum, e) => sum + (e.revenue || 0), 0);
+      const totalServices = data.reduce((sum, e) => sum + (e.totalServices || 0), 0);
+      
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`Total Revenue: Rs. ${totalRevenue.toFixed(2)}`, margin, finalY);
+      doc.text(`Total Services: ${totalServices}`, pageWidth - margin, finalY, { align: 'right' });
+      
+    } else {
+      // Original simple table format for other reports
     
-    doc.setFontSize(10);
-    doc.setTextColor(100);
-    doc.setFont('helvetica', 'normal');
-    
-    let footerY = finalY;
-    if (footerData) {
-      if (footerData.totalCount !== undefined) {
-        doc.text(`Total Records: ${footerData.totalCount}`, 14, footerY);
-        footerY += 6;
-      }
-      if (footerData.totalAmount !== undefined) {
-        doc.text(`Total Amount: ${formatCurrencyForPDF(footerData.totalAmount)}`, 14, footerY);
-        footerY += 6;
-      }
-      if (footerData.totalCustomers !== undefined) {
-        doc.text(`Total Customers: ${footerData.totalCustomers}`, 14, footerY);
-        footerY += 6;
+      // Prepare table data - replace currency formatting with PDF-safe version
+      const tableRows = data.map(item => {
+        return columns.map(col => {
+          let value = item[col.key];
+          if ((col.key === 'amount' || col.key === 'grand_total') && typeof value === 'number') {
+            value = formatCurrencyForPDF(value);
+          } else if (col.format) {
+            const formatted = col.format(value, item);
+            if (typeof formatted === 'string' && formatted.includes('₹')) {
+              value = formatted.replace('₹', 'Rs.'); // Convert ₹ to Rs. for PDF
+            } else {
+              value = formatted;
+            }
+          } else if (value === null || value === undefined) {
+            value = '-';
+          }
+          return String(value);
+        });
+      });
+
+      console.log('📄 Table rows prepared:', tableRows.length);
+
+      // Use doc.autoTable instead of autoTable(doc, ...)
+      doc.autoTable({
+        head: [columns.map(col => col.header)],
+        body: tableRows,
+        startY: startY,
+        styles: {
+          font: 'helvetica',
+          fontSize: 9,
+          cellPadding: 3,
+          lineColor: [200, 200, 200],
+          lineWidth: 0.1,
+        },
+        headStyles: {
+          fillColor: [59, 130, 246],
+          textColor: [255, 255, 255],
+          fontStyle: 'bold',
+          halign: 'center',
+        },
+        alternateRowStyles: {
+          fillColor: [249, 250, 251],
+        },
+        columnStyles: {
+          // Right-align amount/price columns
+          3: { halign: 'right' },
+          4: { halign: 'right' },
+          5: { halign: 'right' },
+        },
+        margin: { left: 14, right: 14 },
+      });
+
+      console.log('📄 AutoTable rendered');
+
+      // Footer
+      const finalY = doc.lastAutoTable.finalY + 10;
+      
+      doc.setFontSize(10);
+      doc.setTextColor(100);
+      doc.setFont('helvetica', 'normal');
+      
+      let footerY = finalY;
+      if (footerData) {
+        if (footerData.totalCount !== undefined) {
+          doc.text(`Total Records: ${footerData.totalCount}`, 14, footerY);
+          footerY += 6;
+        }
+        if (footerData.totalAmount !== undefined) {
+          doc.text(`Total Amount: ${formatCurrencyForPDF(footerData.totalAmount)}`, 14, footerY);
+          footerY += 6;
+        }
+        if (footerData.totalCustomers !== undefined) {
+          doc.text(`Total Customers: ${footerData.totalCustomers}`, 14, footerY);
+          footerY += 6;
+        }
       }
     }
 

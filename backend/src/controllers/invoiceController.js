@@ -30,6 +30,10 @@ const getAllInvoices = async (req, res, next) => {
         inv.employee_name = inv.employee_id.name;
         inv.employee_id = inv.employee_id._id || inv.employee_id.id;
       }
+      // Map service names from items
+      if (inv.items && Array.isArray(inv.items)) {
+        inv.services = inv.items.map(item => item.service_id?.name || item.name || 'Service').join(', ');
+      }
       return inv;
     });
     return successResponse(res, invoices);

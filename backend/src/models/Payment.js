@@ -30,7 +30,11 @@ class Payment {
     return PaymentModel.find(query)
       .populate('employee_id', 'name')
       .populate('branch_id', 'name')
-      .populate('invoice_id', 'invoice_number')
+      .populate({ 
+        path: 'invoice_id', 
+        select: 'invoice_number items',
+        populate: { path: 'items.service_id', select: 'name' }
+      })
       .sort({ created_at: -1 }).lean();
   }
 

@@ -16,7 +16,17 @@ const getAllPayments = async (req, res, next) => {
       }
       if (p.invoice_id && typeof p.invoice_id === 'object') {
         p.invoice_number = p.invoice_id.invoice_number;
+        // Map service names from invoice items
+        const serviceNames = p.invoice_id.items?.map(item => {
+          if (item.service_id && typeof item.service_id === 'object') {
+            return item.service_id.name || 'Service';
+          }
+          return item.name || item.serviceName || 'Service';
+        }) || [];
+        p.services = serviceNames.length > 0 ? serviceNames.join(', ') : 'No Service';
         p.invoice_id = p.invoice_id._id || p.invoice_id.id;
+      } else {
+        p.services = 'No Service';
       }
       return p;
     });

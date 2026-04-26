@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { reportsAPI, branchesAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { cleanParams } from '../utils/cleanParams';
-import { formatCurrency } from '../utils/helpers';
+import { formatCurrency, exportToPDF } from '../utils/helpers';
 import { FileText, FileDown, TrendingUp, Users, Calendar, Building2, Loader2, X } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 
@@ -70,8 +70,10 @@ export default function Reports() {
       }
 
       if (res?.data?.success) {
-        console.log('📊 Report Data:', reportType, res.data.data);
+        console.log('📊 Report Data:', reportType, JSON.stringify(res.data.data).substring(0, 500));
         setReportData(res.data.data);
+      } else {
+        console.error('📊 API Error:', res?.data);
       }
     } catch (error) { 
       console.error('Report Error:', error); 
@@ -80,6 +82,17 @@ export default function Reports() {
   };
 
   const handleExportPDF = async () => {
+    if (reportType === 'employee' && reportData?.employees) {
+      exportToPDF({
+        title: 'Employee Performance Report',
+        data: reportData.employees,
+        filename: 'employee-report',
+        reportType: 'employee',
+        tableColumns: ['#', 'Name', 'Branch', 'Services', 'Revenue']
+      });
+      return;
+    }
+    
     if (!reportType || (reportType !== 'daily' && reportType !== 'monthly')) {
       alert('PDF export is available for Daily and Monthly reports only.');
       return;
@@ -154,12 +167,12 @@ export default function Reports() {
         </div>
         <button 
           onClick={handleExportPDF} 
-          disabled={exporting || !reportData || (reportType !== 'daily' && reportType !== 'monthly')}
+          disabled={exporting || !reportData || !['daily', 'monthly', 'employee'].includes(reportType)}
           className="btn-secondary flex items-center gap-2"
-          title={reportType !== 'daily' && reportType !== 'monthly' ? 'PDF export available for Daily and Monthly reports only' : ''}
+          title={!['daily', 'monthly', 'employee'].includes(reportType) ? 'PDF export available for Daily, Monthly and Employee reports' : ''}
         >
           {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />} 
-          {reportType === 'daily' || reportType === 'monthly' ? 'Export PDF' : 'Export (Daily/Monthly)'}
+          Export PDF
         </button>
       </div>
 
@@ -320,10 +333,6 @@ export default function Reports() {
                   <div className="p-4 bg-blue-50 rounded-xl">
                     <p className="text-sm text-blue-700">Invoices</p>
                     <p className="text-xl font-bold text-blue-900">{reportData.summary?.total_invoices || 0}</p>
-                  </div>
-                  <div className="p-4 bg-purple-50 rounded-xl">
-                    <p className="text-sm text-purple-700">Avg Invoice</p>
-                    <p className="text-xl font-bold text-purple-900">{formatCurrency(reportData.summary?.avg_invoice_value)}</p>
                   </div>
                   <div className="p-4 bg-orange-50 rounded-xl">
                     <p className="text-sm text-orange-700">Expenses</p>

@@ -83,13 +83,17 @@ const adminLogin = async (req, res, next) => {
       return errorResponse(res, 'Password not set. Please reset your password.', 400);
     }
 
-    // Verify password
+    // Verify password - support both hashed and plain text
     let isValidPassword = false;
     try {
-      isValidPassword = await bcrypt.compare(password, user.password);
+      if (user.password.startsWith('$2')) {
+        isValidPassword = await bcrypt.compare(password, user.password);
+      } else {
+        isValidPassword = password === user.password;
+      }
     } catch (err) {
-      console.error('❌ Bcrypt error:', err.message);
-      return errorResponse(res, 'Authentication failed', 500);
+      console.error('❌ Password verify error:', err.message);
+      isValidPassword = false;
     }
 
     if (!isValidPassword) {
@@ -156,13 +160,17 @@ const employeeLogin = async (req, res, next) => {
       return errorResponse(res, 'Password not set. Please contact admin.', 400);
     }
 
-    // Verify password
+    // Verify password - support both hashed and plain text
     let isValidPassword = false;
     try {
-      isValidPassword = await bcrypt.compare(password, user.password);
+      if (user.password.startsWith('$2')) {
+        isValidPassword = await bcrypt.compare(password, user.password);
+      } else {
+        isValidPassword = password === user.password;
+      }
     } catch (err) {
-      console.error('❌ Bcrypt error:', err.message);
-      return errorResponse(res, 'Authentication failed', 500);
+      console.error('❌ Password verify error:', err.message);
+      isValidPassword = false;
     }
 
     if (!isValidPassword) {

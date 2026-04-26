@@ -52,6 +52,7 @@ const getDailyReportData = async (branchId, date) => {
     .populate('employee_id', 'name')
     .populate('customer_id', 'name')
     .populate('branch_id', 'name')
+    .populate('items.service_id', 'name')
     .sort({ created_at: -1 })
     .lean();
 
@@ -64,7 +65,7 @@ const getDailyReportData = async (branchId, date) => {
 
   const expenseStats = await ExpenseModel.aggregate([
     { $match: expenseMatch },
-    { $group: { _id: null, total: { $sum: '$amount' }, count: { $sum: 1 } } }
+    { $group: { _id: null, total: { $sum: '$grand_total' }, count: { $sum: 1 } } }
   ]);
 
   let branchName = 'All Branches';
@@ -88,6 +89,7 @@ const getDailyReportData = async (branchId, date) => {
       invoice_number: inv.invoice_number,
       customer_name: inv.customer_id?.name || 'Walk-in',
       employee_name: inv.employee_id?.name || 'N/A',
+      services: inv.items?.map(item => item.service_id?.name || item.name || 'Service').join(', ') || 'No Service',
       amount: inv.final_amount,
       payment_type: inv.payment_type,
       time: new Date(inv.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
@@ -145,12 +147,10 @@ const getMonthlyReportData = async (branchId, year, month) => {
 
   const expenseStats = await ExpenseModel.aggregate([
     { $match: expenseMatch },
-    { $group: { _id: null, total: { $sum: '$amount' }, count: { $sum: 1 } } }
+    { $group: { _id: null, total: { $sum: '$grand_total' }, count: { $sum: 1 } } }
   ]);
 
-  const avgInvoice = revenueStats[0]?.count > 0 
-    ? (revenueStats[0]?.revenue || 0) / revenueStats[0]?.count 
-    : 0;
+  const profit = (revenueStats[0]?.revenue || 0) - (expenseStats[0]?.total || 0);
 
   let branchName = 'All Branches';
   if (branchId && mongoose.Types.ObjectId.isValid(branchId)) {
@@ -164,12 +164,11 @@ const getMonthlyReportData = async (branchId, year, month) => {
     branchName,
     revenue: revenueStats[0]?.revenue || 0,
     invoiceCount: revenueStats[0]?.count || 0,
-    avgInvoice,
     upiCollection: revenueStats[0]?.upi || 0,
     cashCollection: revenueStats[0]?.cash || 0,
     expenses: expenseStats[0]?.total || 0,
     expenseCount: expenseStats[0]?.count || 0,
-    profit: (revenueStats[0]?.revenue || 0) - (expenseStats[0]?.total || 0),
+    profit: profit,
     dailyData,
     daysInMonth: endDate.getDate()
   };
@@ -244,8 +243,8 @@ const exportDailyPDF = async (res, data) => {
         doc.moveDown(0.5);
 
         const tableTop = doc.y;
-        const tableHeaders = ['#', 'Invoice #', 'Customer', 'Employee', 'Amount', 'Mode'];
-        const columnWidths = [25, 90, 100, 90, 80, 50];
+        const tableHeaders = ['#', 'Service', 'Customer', 'Employee', 'Amount', 'Mode'];
+        const columnWidths = [20, 140, 90, 80, 70, 45];
         const rowHeight = 20;
 
         doc.fontSize(9).fillColor('#6b7280');
@@ -267,7 +266,7 @@ const exportDailyPDF = async (res, data) => {
           xPos = 50;
           doc.text((idx + 1).toString(), xPos, y, { width: columnWidths[0] });
           xPos += columnWidths[0];
-          doc.text((inv.invoice_number || '').substring(0, 15), xPos, y, { width: columnWidths[1] });
+          doc.text((inv.services || 'No Service').substring(0, 25), xPos, y, { width: columnWidths[1] });
           xPos += columnWidths[1];
           doc.text((inv.customer_name || 'Walk-in').substring(0, 15), xPos, y, { width: columnWidths[2] });
           xPos += columnWidths[2];
@@ -277,6 +276,25 @@ const exportDailyPDF = async (res, data) => {
           xPos += columnWidths[4];
           doc.text(inv.payment_type || '', xPos, y, { width: columnWidths[5] });
         });
+        
+        if (data.invoices.length > 0) {
+          const totalCash = data.invoices.filter(i => i.payment_type === 'CASH').reduce((sum, i) => sum + (i.amount || 0), 0);
+          const totalUPI = data.invoices.filter(i => i.payment_type === 'UPI').reduce((sum, i) => sum + (i.amount || 0), 0);
+          const grandTotal = totalCash + totalUPI;
+          
+          doc.moveDown(0.5);
+          doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke('#e5e7eb');
+          doc.moveDown(0.5);
+
+          doc.fontSize(10).font('Helvetica-Bold').fillColor('#374151');
+          doc.text('Total Cash:', 200, doc.y);
+          doc.text(formatCurrency(totalCash), 350, doc.y - 12);
+          doc.text('Total UPI:', 200, doc.y);
+          doc.text(formatCurrency(totalUPI), 350, doc.y - 12);
+          doc.text('Grand Total:', 200, doc.y);
+          doc.fillColor('#059669').text(formatCurrency(grandTotal), 350, doc.y - 12);
+          doc.font('Helvetica');
+        }
       }
 
       doc.moveDown(2);
@@ -331,22 +349,18 @@ const exportMonthlyPDF = async (res, data) => {
       doc.fillColor('#1e40af').text(data.invoiceCount.toString(), col2X, summaryY + 18);
 
       doc.fillColor('#374151');
-      doc.text('Avg Invoice Value:', col1X, summaryY + 36);
-      doc.text(formatCurrency(data.avgInvoice), col2X, summaryY + 36);
+      doc.text('UPI Collection:', col1X, summaryY + 36);
+      doc.text(formatCurrency(data.upiCollection), col2X, summaryY + 36);
 
       doc.fillColor('#374151');
-      doc.text('UPI Collection:', col1X, summaryY + 54);
-      doc.text(formatCurrency(data.upiCollection), col2X, summaryY + 54);
+      doc.text('Cash Collection:', col1X, summaryY + 54);
+      doc.text(formatCurrency(data.cashCollection), col2X, summaryY + 54);
 
       doc.fillColor('#374151');
-      doc.text('Cash Collection:', col1X, summaryY + 72);
-      doc.text(formatCurrency(data.cashCollection), col2X, summaryY + 72);
+      doc.text('Total Expenses:', col1X, summaryY + 72);
+      doc.fillColor('#dc2626').text(formatCurrency(data.expenses), col2X, summaryY + 72);
 
-      doc.fillColor('#374151');
-      doc.text('Total Expenses:', col1X, summaryY + 90);
-      doc.fillColor('#dc2626').text(formatCurrency(data.expenses), col2X, summaryY + 90);
-
-      doc.moveDown(4.5);
+      doc.moveDown(4);
 
       doc.fillColor('#000000');
       doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke('#e5e7eb');

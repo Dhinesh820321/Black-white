@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const Attendance = require('../models/Attendance');
 const { successResponse, errorResponse } = require('../utils/responseHelper');
 
@@ -38,10 +39,42 @@ const checkIn = async (req, res, next) => {
   try {
     const employeeId = req.user._id || req.user.id;
     const branchId = req.user.branch_id;
-    const { location } = req.body;
+    const { location, latitude, longitude } = req.body;
 
     if (!branchId && req.user.role !== 'admin') {
       return errorResponse(res, 'No branch assigned', 400);
+    }
+
+    if (branchId) {
+      const BranchModel = mongoose.model('Branch');
+      const branch = await BranchModel.findById(branchId).lean();
+      
+      if (branch && branch.geo_latitude != null && branch.geo_longitude != null) {
+        if (!latitude || !longitude) {
+          return errorResponse(res, 'Location access required for check-in', 400);
+        }
+
+        const lat1 = parseFloat(latitude);
+        const lon1 = parseFloat(longitude);
+        const lat2 = parseFloat(branch.geo_latitude);
+        const lon2 = parseFloat(branch.geo_longitude);
+        const radius = parseFloat(branch.geo_radius) || 200;
+
+        const R = 6371000;
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+          Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+          Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        const distance = R * c;
+
+        console.log('📍 Distance check:', { lat1, lon1, lat2, lon2, radius, distance: Math.round(distance) });
+
+        if (distance > radius) {
+          return errorResponse(res, `You must be within ${radius}m of the branch. Distance: ${Math.round(distance)}m`, 403);
+        }
+      }
     }
 
     const attendance = await Attendance.checkIn(employeeId, branchId, location);
@@ -61,6 +94,39 @@ const checkIn = async (req, res, next) => {
 const checkOut = async (req, res, next) => {
   try {
     const employeeId = req.user._id || req.user.id;
+    const branchId = req.user.branch_id;
+    const { latitude, longitude } = req.body;
+
+    if (branchId) {
+      const BranchModel = mongoose.model('Branch');
+      const branch = await BranchModel.findById(branchId).lean();
+      
+      if (branch && branch.geo_latitude != null && branch.geo_longitude != null) {
+        if (!latitude || !longitude) {
+          return errorResponse(res, 'Location required for check-out', 400);
+        }
+
+        const lat1 = parseFloat(latitude);
+        const lon1 = parseFloat(longitude);
+        const lat2 = parseFloat(branch.geo_latitude);
+        const lon2 = parseFloat(branch.geo_longitude);
+        const radius = parseFloat(branch.geo_radius) || 200;
+
+        const R = 6371000;
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+          Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+          Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        const distance = R * c;
+
+        if (distance > radius) {
+          return errorResponse(res, `You must be within ${radius}m of the branch to check-out. Distance: ${Math.round(distance)}m`, 403);
+        }
+      }
+    }
+
     const attendance = await Attendance.checkOut(employeeId);
     return successResponse(res, attendance, 'Checked out successfully');
   } catch (error) {

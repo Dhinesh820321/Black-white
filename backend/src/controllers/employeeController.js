@@ -103,6 +103,10 @@ const updateEmployee = async (req, res, next) => {
       updateData.phone = phone.trim();
     }
     
+    if (password !== undefined && password !== null && password.trim() !== '') {
+      updateData.password = password.trim();
+    }
+    
     const employee = await User.update(req.params.id, updateData);
     if (!employee) {
       console.log('⚠️ Employee not found:', req.params.id);
