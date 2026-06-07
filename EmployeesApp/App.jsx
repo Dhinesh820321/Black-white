@@ -1,14 +1,14 @@
 import './global.css';
+import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { View, Text, ActivityIndicator } from 'react-native';
+import { View, Text, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { useAuth, AuthProvider } from './src/context/AuthContext';
 import { LanguageProvider } from './src/context/LanguageContext';
 import { I18nextProvider, useTranslation } from 'react-i18next';
 import { Home, Clock, Receipt, DollarSign, User } from 'lucide-react-native';
 
-import './src/i18n/i18n';
 import i18n from './src/i18n/i18n';
 
 import LoginScreen from './src/screens/LoginScreen';
@@ -178,16 +178,56 @@ function AppNavigator() {
   );
 }
 
+// ── Error Boundary ─────────────────────────────────────────────
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    if (__DEV__) {
+      console.error('ErrorBoundary caught:', error, errorInfo);
+    }
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24, backgroundColor: '#f9fafb' }}>
+          <Text style={{ fontSize: 20, fontWeight: '700', color: '#111827', marginBottom: 8 }}>Something went wrong</Text>
+          <Text style={{ fontSize: 14, color: '#6b7280', textAlign: 'center', marginBottom: 24 }}>
+            {this.state.error?.message || 'An unexpected error occurred'}
+          </Text>
+          <TouchableOpacity
+            onPress={() => this.setState({ hasError: false, error: null })}
+            style={{ backgroundColor: '#0ea5e9', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 }}
+          >
+            <Text style={{ color: 'white', fontWeight: '600' }}>Try Again</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 export default function App() {
   return (
-    <I18nextProvider i18n={i18n}>
-      <LanguageProvider>
-        <AuthProvider>
-          <NavigationContainer>
-            <AppNavigator />
-          </NavigationContainer>
-        </AuthProvider>
-      </LanguageProvider>
-    </I18nextProvider>
+    <ErrorBoundary>
+      <I18nextProvider i18n={i18n}>
+        <LanguageProvider>
+          <AuthProvider>
+            <NavigationContainer>
+              <AppNavigator />
+            </NavigationContainer>
+          </AuthProvider>
+        </LanguageProvider>
+      </I18nextProvider>
+    </ErrorBoundary>
   );
 }

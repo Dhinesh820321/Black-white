@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { authAPI } from '../api/api';
 
@@ -88,15 +88,17 @@ export const AuthProvider = ({ children }) => {
     await AsyncStorage.setItem(USER_KEY, JSON.stringify(updatedUser));
   }, []);
 
+  const contextValue = useMemo(() => ({
+    user, 
+    loading, 
+    login, 
+    logout, 
+    updateUser,
+    isAuthenticated: !!user 
+  }), [user, loading, login, logout, updateUser]);
+
   return (
-    <AuthContext.Provider value={{ 
-      user, 
-      loading, 
-      login, 
-      logout, 
-      updateUser,
-      isAuthenticated: !!user 
-    }}>
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );

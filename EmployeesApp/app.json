@@ -31,8 +31,7 @@
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
-        "android.permission.ACCESS_COARSE_LOCATION",
-        "android.permission.ACCESS_FINE_LOCATION"
+        "CAMERA"
       ]
     },
     "web": {
@@ -43,6 +42,13 @@
         "expo-location",
         {
           "locationAlwaysAndWhenInUsePermission": "Allow Employees App to use your location for attendance."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Employees App to access your photos for profile picture.",
+          "cameraPermission": "Allow Employees App to use camera for profile picture."
         }
       ],
       "expo-secure-store"

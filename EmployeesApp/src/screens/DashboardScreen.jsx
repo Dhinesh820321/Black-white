@@ -78,10 +78,6 @@ export default function DashboardScreen({ navigation }) {
   const getHeaderProfileImage = () => {
     const imagePath = profileImageUri || user?.profile_image;
     
-    // Debug logging
-    console.log('[Dashboard] profileImageUri:', profileImageUri);
-    console.log('[Dashboard] user?.profile_image:', user?.profile_image);
-    
     if (!imagePath) return null;
     
     // Already full URL
@@ -95,10 +91,8 @@ export default function DashboardScreen({ navigation }) {
 
   // Load profile image
   const loadProfileImage = async () => {
-    console.log('[Dashboard] Loading profile image...');
     // Try auth context first
     if (user?.profile_image) {
-      console.log('[Dashboard] Setting from auth:', user.profile_image);
       setProfileImageUri(user.profile_image);
       return;
     }
@@ -107,7 +101,6 @@ export default function DashboardScreen({ navigation }) {
     const savedUser = await AsyncStorage.getItem('@auth_user');
     if (savedUser) {
       const parsed = JSON.parse(savedUser);
-      console.log('[Dashboard] Setting from storage:', parsed?.profile_image);
       if (parsed?.profile_image) {
         setProfileImageUri(parsed.profile_image);
       }
@@ -137,8 +130,10 @@ export default function DashboardScreen({ navigation }) {
         branchId = user?.branchId?._id || user?.branchId;
       }
       
-      console.log('[Dashboard] User branch_id:', user?.branch_id);
-      console.log('[Dashboard] Using branchId:', branchId);
+      if (__DEV__) {
+        console.log('[Dashboard] User branch_id:', user?.branch_id);
+        console.log('[Dashboard] Using branchId:', branchId);
+      }
       
       // Fetch attendance (works without branch)
       const attendanceRes = await attendanceAPI.getToday();
@@ -163,7 +158,7 @@ export default function DashboardScreen({ navigation }) {
 
       // If no branch, skip revenue fetch
       if (!branchId) {
-        console.log('[Dashboard] No branch assigned - skipping revenue');
+        if (__DEV__) console.log('[Dashboard] No branch assigned - skipping revenue');
         setLoading(false);
         return;
       }
@@ -180,8 +175,10 @@ export default function DashboardScreen({ navigation }) {
           invoicesAPI.getMonthlyRevenue({ branch_id: branchId, year: currentYear, month: currentMonth }),
         ]);
 
-        console.log('📊 Dashboard Revenue:', revenueRes);
-        console.log('📊 Monthly Revenue:', monthlyRes);
+        if (__DEV__) {
+          console.log('📊 Dashboard Revenue:', revenueRes);
+          console.log('📊 Monthly Revenue:', monthlyRes);
+        }
 
         let todayRevenue = 0, todayServices = 0, todayCollection = 0;
         if (revenueRes.success) {
@@ -205,12 +202,13 @@ export default function DashboardScreen({ navigation }) {
           monthlyCollection,
         }));
       } catch (revenueErr) {
-        console.log('[Dashboard] Revenue fetch error:', revenueErr.message);
+        if (__DEV__) console.log('[Dashboard] Revenue fetch error:', revenueErr.message);
       }
     } catch (error) {
       console.error('Dashboard error:', error);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, [user]);
 
@@ -296,7 +294,7 @@ export default function DashboardScreen({ navigation }) {
           <View className="flex-row gap-3 mb-6">
             <StatCard
               title={t('status')}
-              value={stats.checkedIn ? t('prograss') : t('away')}
+              value={stats.checkedIn ? t('active') : t('away')}
               subtitle={stats.checkInTime 
                 ? `${t('checkIn')}: ${new Date(stats.checkInTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`
                 : t('notCheckedIn')}

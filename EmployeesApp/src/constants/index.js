@@ -31,8 +31,6 @@ const getBaseURL = () => {
   return PRODUCTION_URL;
 };
 
-// Check if running in Expo Go (development mode)
-const __DEV__ = process.env.NODE_ENV === 'development';
 
 // Export URLs
 export const API_URL = getBaseURL();

@@ -45,7 +45,9 @@ export const useLocation = () => {
         setError('Permission denied');
         return;
       }
-      const loc = await Location.getCurrentPositionAsync({});
+      const loc = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.High,
+      });
       setLocation({
         latitude: loc.coords.latitude,
         longitude: loc.coords.longitude,

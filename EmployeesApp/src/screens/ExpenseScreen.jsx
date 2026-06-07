@@ -71,7 +71,8 @@ export default function ExpenseScreen() {
   // Set default branch for non-helpers on mount
   useEffect(() => {
     if (!isHelper && user?.branch_id) {
-      setSelectedBranch(user.branch_id);
+      const branchId = typeof user.branch_id === 'object' ? user.branch_id._id : user.branch_id;
+      setSelectedBranch(branchId);
     }
   }, [isHelper, user?.branch_id]);
 
@@ -167,14 +168,14 @@ export default function ExpenseScreen() {
         dynamicTitle = `${itemNames[0]} + ${itemNames.length - 1} more`;
       }
 
-const expenseData = {
+      const expenseData = {
         title: dynamicTitle,
         items: cleanedItems,
         grand_total: parseFloat(grandTotal.toString()),
         payment_mode: formData.payment_mode,
         notes: formData.notes.trim(),
         // Helpers use selected branch, others use their default branch
-        branch_id: selectedBranch || user?.branch_id,
+        branch_id: selectedBranch || (typeof user?.branch_id === 'object' ? user?.branch_id?._id : user?.branch_id),
       };
 
       console.log('📤 EXPENSE REQUEST:', JSON.stringify(expenseData, null, 2));

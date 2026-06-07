@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { attendanceAPI } from '../api/api';
+import { useFocusEffect } from '@react-navigation/native';
 import { Clock, LogIn, LogOut, Calendar, Coffee } from 'lucide-react-native';
 
 const COLORS = {
@@ -200,10 +201,12 @@ export default function HistoryScreen() {
     }
   }, [filter]);
 
-  useEffect(() => {
-    setLoading(true);
-    fetchHistory();
-  }, [filter]);
+  useFocusEffect(
+    useCallback(() => {
+      setLoading(true);
+      fetchHistory();
+    }, [fetchHistory])
+  );
 
   const onRefresh = useCallback(() => {
     fetchHistory(true);
@@ -211,7 +214,7 @@ export default function HistoryScreen() {
 
   const filteredData = attendance;
 
-  const renderItem = ({ item }) => <AttendanceCard item={item} t={t} />;
+  const renderItem = useCallback(({ item }) => <AttendanceCard item={item} t={t} />, [t]);
 
   const renderEmpty = () => (
     <View style={styles.emptyContainer}>
@@ -264,7 +267,7 @@ export default function HistoryScreen() {
           data={filteredData}
           renderItem={renderItem}
           keyExtractor={(item, index) =>
-            item.id?.toString() || index.toString()
+            item._id?.toString() || item.id?.toString() || index.toString()
           }
           contentContainerStyle={styles.listContent}
           refreshControl={

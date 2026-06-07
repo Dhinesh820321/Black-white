@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import { useTranslation } from 'react-i18next';
 import * as Location from 'expo-location';
 import { attendanceAPI } from '../api/api';
 import { useAuth } from '../context/AuthContext';
+import { useFocusEffect } from '@react-navigation/native';
 import { Clock, MapPin, CheckCircle, LogOut, History } from 'lucide-react-native';
 
 const COLORS = {
@@ -66,9 +67,11 @@ export default function AttendanceScreen({ navigation }) {
     }
   }, []);
 
-  useEffect(() => {
-    fetchAttendance();
-  }, [fetchAttendance]);
+  useFocusEffect(
+    useCallback(() => {
+      fetchAttendance();
+    }, [fetchAttendance])
+  );
 
   const getLocation = async () => {
     try {

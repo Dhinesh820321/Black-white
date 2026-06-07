@@ -6,3 +6,13 @@ node_modules/
 android/s
 ios/
 git add .
+node_modules
+**/node_modules
+
+.env
+**/.env
+
+dist
+build
+.vercel
+.env*

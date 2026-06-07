@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -61,15 +61,12 @@ function ProfileItem({ icon: Icon, label, value }) {
 }
 
 export default function ProfileScreen({ navigation }) {
-  const { user, logout } = useAuth();
+  const { user, logout, updateUser } = useAuth();
   const { t } = useTranslation();
   const [uploading, setUploading] = useState(false);
   const [profileImageUri, setProfileImageUri] = useState(null);
 
-  // DEBUG: Log state changes
-  useEffect(() => {
-    console.log('[DEBUG] Photo URI changed to:', profileImageUri);
-  }, [profileImageUri]);
+
 
   // Load profile image when screen comes into focus
   useFocusEffect(
@@ -153,13 +150,11 @@ export default function ProfileScreen({ navigation }) {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${await AsyncStorage.getItem('@auth_token')}`,
-          'Content-Type': 'multipart/form-data',
         },
         body: formData,
       });
 
       const data = await response.json();
-      console.log('[DEBUG] Full response:', JSON.stringify(data, null, 2));
       
       if (data.success) {
         const serverImageUrl = data.data.profile_image;
@@ -168,11 +163,10 @@ export default function ProfileScreen({ navigation }) {
         // Update local state for immediate display
         setProfileImageUri(serverImageUrl);
         
-        // Update user in AsyncStorage
+        // Update user in AuthContext + AsyncStorage
         if (user) {
-          const updatedUser = { ...user, profile_image: serverImageUrl };
-          await AsyncStorage.setItem('@auth_user', JSON.stringify(updatedUser));
-          console.log('[Profile] Updated user in storage');
+          const updatedUserData = { ...user, profile_image: serverImageUrl };
+          await updateUser(updatedUserData);
         }
         
         Alert.alert('Success', 'Profile photo updated successfully!');
@@ -199,26 +193,12 @@ export default function ProfileScreen({ navigation }) {
     );
   };
 
-  const getProfileImageUri = () => {
+  const profileImageFullUri = useMemo(() => {
     const imagePath = profileImageUri || user?.profile_image;
-    console.log('[DEBUG] getProfileImageUri called, imagePath:', imagePath);
-    
-    if (!imagePath) {
-      console.log('[DEBUG] No image path, returning null');
-      return null;
-    }
-    
-    // Already full URL
-    if (imagePath.startsWith('http')) {
-      console.log('[DEBUG] Returning full URL:', imagePath);
-      return imagePath;
-    }
-    
-    // Local path - prepend BASE_URL
-    const fullUrl = `${BASE_URL}${imagePath}`;
-    console.log('[DEBUG] Returning constructed URL:', fullUrl);
-    return fullUrl;
-  };
+    if (!imagePath) return null;
+    if (imagePath.startsWith('http')) return imagePath;
+    return `${BASE_URL}${imagePath}`;
+  }, [profileImageUri, user?.profile_image]);
 
   const handleLogout = () => {
     Alert.alert(
@@ -244,9 +224,9 @@ export default function ProfileScreen({ navigation }) {
               <View className="w-24 h-24 rounded-full bg-gray-200 items-center justify-center">
                 <ActivityIndicator size="large" color={COLORS.primary} />
               </View>
-            ) : getProfileImageUri() ? (
+            ) : profileImageFullUri ? (
               <Image
-                source={{ uri: getProfileImageUri() }}
+                source={{ uri: profileImageFullUri }}
                 className="w-24 h-24 rounded-full"
               />
             ) : (
