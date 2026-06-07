@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Employees App",
-    "slug": "employees-app",
+    "name": "Salon Master",
+    "slug": "salon-master-employees",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -9,14 +9,15 @@
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#0ea5e9"
+      "backgroundColor": "#0A1628"
     },
     "assetBundlePatterns": [
       "**/*"
     ],
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.yourcompany.employeesapp",
+      "bundleIdentifier": "com.salonmaster.employees",
+      "icon": "./assets/icon.png",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "We need your location for attendance verification",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "We need your location for attendance verification"
@@ -25,17 +26,24 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#0ea5e9"
+        "backgroundColor": "#0A1628"
       },
-      "package": "com.yourcompany.employeesapp",
+      "package": "com.salonmaster.employees",
+      "versionCode": 1,
       "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
         "ACCESS_FINE_LOCATION",
-        "ACCESS_COARSE_LOCATION",
-        "CAMERA"
-      ]
+        "ACCESS_COARSE_LOCATION"
+      ],
+      "config": {
+        "usesCleartextTraffic": true
+      }
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
     },
     "plugins": [
       [
