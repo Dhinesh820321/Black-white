@@ -80,13 +80,64 @@ class Employee {
     return bcrypt.compare(plainPassword, hashedPassword);
   }
 
-  static async getPerformance(employeeId, startDate, endDate) {
-    // These require cross-collection aggregations.
-    // For now we return empty stats.
+  static async getPerformance(employeeId, startDate, endDate, branchId = null) {
+    const InvoiceModel = mongoose.model('Invoice');
+    const AttendanceModel = mongoose.model('Attendance');
+
+    // Build date range
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999);
+
+    // Handle both ObjectId and string employee IDs
+    const empObjId = mongoose.Types.ObjectId.isValid(employeeId)
+      ? new mongoose.Types.ObjectId(employeeId)
+      : employeeId;
+
+    // --- Invoice aggregation (services & revenue) ---
+    const invoiceMatch = {
+      employee_id: empObjId,
+      created_at: { $gte: start, $lte: end },
+      status: 'completed'
+    };
+    if (branchId && mongoose.Types.ObjectId.isValid(branchId)) {
+      invoiceMatch.branch_id = new mongoose.Types.ObjectId(branchId);
+    }
+
+    const invoiceStats = await InvoiceModel.aggregate([
+      { $match: invoiceMatch },
+      { $group: {
+        _id: null,
+        revenue: { $sum: '$final_amount' },
+        services: { $sum: 1 }
+      }}
+    ]);
+
+    // --- Attendance aggregation (days worked & total hours) ---
+    const startDateStr = start.toISOString().slice(0, 10);
+    const endDateStr = end.toISOString().slice(0, 10);
+
+    const attendanceStats = await AttendanceModel.aggregate([
+      { $match: {
+        employee_id: empObjId,
+        date: { $gte: startDateStr, $lte: endDateStr },
+        check_in_time: { $ne: null }
+      }},
+      { $group: {
+        _id: null,
+        days_worked: { $sum: 1 },
+        total_minutes: { $sum: '$working_minutes' }
+      }}
+    ]);
+
     return {
-      services: 0,
-      revenue: 0,
-      attendance: { days_worked: 0, total_hours: 0 }
+      services: invoiceStats[0]?.services || 0,
+      revenue: invoiceStats[0]?.revenue || 0,
+      attendance: {
+        days_worked: attendanceStats[0]?.days_worked || 0,
+        total_hours: parseFloat(((attendanceStats[0]?.total_minutes || 0) / 60).toFixed(2))
+      }
     };
   }
 }

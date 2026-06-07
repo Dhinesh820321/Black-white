@@ -93,29 +93,29 @@ class Expense {
     const end = new Date(endDate);
     end.setDate(end.getDate() + 1);
 
-    const cashExpenses = await ExpenseModel.aggregate([
-      { $match: { 
-        branch_id: new mongoose.Types.ObjectId(branchId), 
-        payment_mode: 'CASH',
-        created_at: { $gte: start, $lt: end } 
-      }},
+    const baseMatch = {
+      branch_id: new mongoose.Types.ObjectId(branchId),
+      created_at: { $gte: start, $lt: end }
+    };
+
+    // Sum ALL expenses for the date range (payment-mode agnostic)
+    const allExpenses = await ExpenseModel.aggregate([
+      { $match: baseMatch },
       { $group: { _id: null, total: { $sum: '$grand_total' }, count: { $sum: 1 } } }
     ]);
 
-    const onlineExpenses = await ExpenseModel.aggregate([
-      { $match: { 
-        branch_id: new mongoose.Types.ObjectId(branchId), 
-        payment_mode: 'ONLINE',
-        created_at: { $gte: start, $lt: end } 
-      }},
-      { $group: { _id: null, total: { $sum: '$amount' }, count: { $sum: 1 } } }
+    const cashExpenses = await ExpenseModel.aggregate([
+      { $match: { ...baseMatch, payment_mode: 'CASH' } },
+      { $group: { _id: null, total: { $sum: '$grand_total' }, count: { $sum: 1 } } }
+    ]);
+
+    const upiExpenses = await ExpenseModel.aggregate([
+      { $match: { ...baseMatch, payment_mode: 'UPI' } },
+      { $group: { _id: null, total: { $sum: '$grand_total' }, count: { $sum: 1 } } }
     ]);
 
     const byCategory = await ExpenseModel.aggregate([
-      { $match: { 
-        branch_id: new mongoose.Types.ObjectId(branchId), 
-        created_at: { $gte: start, $lt: end } 
-      }},
+      { $match: baseMatch },
       { $lookup: {
         from: 'expensecategories',
         localField: 'category_id',
@@ -134,9 +134,9 @@ class Expense {
 
     return {
       cashExpenses: { total: cashExpenses[0]?.total || 0, count: cashExpenses[0]?.count || 0 },
-      onlineExpenses: { total: onlineExpenses[0]?.total || 0, count: onlineExpenses[0]?.count || 0 },
+      upiExpenses: { total: upiExpenses[0]?.total || 0, count: upiExpenses[0]?.count || 0 },
       byCategory,
-      total: (cashExpenses[0]?.total || 0) + (onlineExpenses[0]?.total || 0)
+      total: allExpenses[0]?.total || 0
     };
   }
 

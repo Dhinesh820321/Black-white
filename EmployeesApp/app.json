@@ -30,7 +30,9 @@
       "package": "com.yourcompany.employeesapp",
       "permissions": [
         "ACCESS_FINE_LOCATION",
-        "ACCESS_COARSE_LOCATION"
+        "ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
       ]
     },
     "web": {
@@ -47,8 +49,9 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "your-project-id-here"
+        "projectId": "0e77e20c-a3dc-4eab-bed5-569b2f1dd94c"
       }
-    }
+    },
+    "owner": "dhineshkannadasan"
   }
 }

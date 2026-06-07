@@ -1,1 +1,8 @@
-nul
+node_modules
+dist/
+.env
+node_modules/
+.expo/
+android/s
+ios/
+git add .

@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const Invoice = require('../models/Invoice');
 const Attendance = require('../models/Attendance');
 const Expense = require('../models/Expense');
+const Employee = require('../models/Employee');
 const { successResponse } = require('../utils/responseHelper');
 
 const getDailyReport = async (req, res, next) => {
@@ -299,65 +300,42 @@ const getEmployeePerformanceReport = async (req, res, next) => {
     startDate.setHours(0, 0, 0, 0);
     endDate.setHours(23, 59, 59, 999);
 
-    const InvoiceModel = mongoose.model('Invoice');
-    const UserModel = mongoose.model('User');
-    const BranchModel = mongoose.model('Branch');
-
-    const employeeFilter = { role: 'employee' };
+    // Build filter for Employee collection
+    const employeeFilter = {};
     if (branch_id && mongoose.Types.ObjectId.isValid(branch_id)) {
-      employeeFilter.branch_id = new mongoose.Types.ObjectId(branch_id);
+      employeeFilter.branch_id = branch_id;
     }
 
-    const employees = await UserModel.find(employeeFilter)
-      .populate('branch_id', 'name')
-      .lean();
+    // Query the Employee collection (not User)
+    const employees = await Employee.findAll(employeeFilter);
 
     console.log('📊 Date Range:', startDate.toISOString(), 'to', endDate.toISOString());
     console.log('📊 Employees found:', employees.length);
 
     const performanceData = await Promise.all(employees.map(async (emp) => {
-      const empId = emp._id;
-      const empIdStr = emp._id.toString();
-      
-      const invoiceMatch = {
-        created_at: { $gte: startDate, $lte: endDate },
-        status: 'completed',
-        $or: [{ employee_id: empId }, { employee_id: empIdStr }]
-      };
+      // Use Employee.getPerformance which aggregates from the Invoice collection
+      // Pass branch_id so invoice results are scoped to the selected branch
+      const perf = await Employee.getPerformance(
+        emp._id,
+        startDate,
+        endDate,
+        branch_id || null
+      );
 
-      const invoiceStats = await InvoiceModel.aggregate([
-        { $match: invoiceMatch },
-        { $group: {
-          _id: null,
-          revenue: { $sum: '$final_amount' },
-          totalServices: { $sum: 1 }
-        }}
-      ]);
-
-      const serviceCount = await InvoiceModel.aggregate([
-        { $match: {
-          created_at: { $gte: startDate, $lte: endDate },
-          status: 'completed',
-          $or: [{ employee_id: empId }, { employee_id: empIdStr }]
-        }},
-        { $unwind: '$items' },
-        { $group: { _id: null, count: { $sum: '$items.quantity' } } }
-      ]);
-
-      const revenue = invoiceStats[0]?.revenue || 0;
-      const totalServices = serviceCount[0]?.count || invoiceStats[0]?.totalServices || 0;
-      const avgPerService = totalServices > 0 ? revenue / totalServices : 0;
+      const revenue = perf.revenue || 0;
+      const totalServices = perf.services || 0;
+      const avgPerService = totalServices > 0 ? parseFloat((revenue / totalServices).toFixed(2)) : 0;
 
       return {
-        _id: empId,
-        id: empId,
+        _id: emp._id,
+        id: emp._id,
         name: emp.name,
         phone: emp.phone,
         role: emp.role,
         branch_name: emp.branch_id?.name || 'N/A',
-        revenue: revenue,
-        totalServices: totalServices,
-        avgPerService: avgPerService
+        revenue,
+        totalServices,
+        avgPerService
       };
     }));
 
