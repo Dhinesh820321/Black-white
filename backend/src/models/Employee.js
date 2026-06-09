@@ -5,12 +5,12 @@ const { v4: uuidv4 } = require('uuid');
 const employeeSchema = new mongoose.Schema({
   employee_id: { type: String, unique: true },
   name: { type: String, required: true },
-  role: { type: String, enum: ['admin', 'manager', 'stylist', 'helper'], required: true },
+  role: { type: String, enum: ['admin', 'manager', 'stylist', 'helper'], required: true, index: true },
   phone: { type: String, unique: true, required: true },
   password: { type: String, required: true },
-  branch_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch' },
+  branch_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch', index: true },
   salary: { type: Number, default: 0 },
-  status: { type: String, enum: ['active', 'inactive'], default: 'active' },
+  status: { type: String, enum: ['active', 'inactive'], default: 'active', index: true },
   device_id: { type: String },
   password_changed_at: { type: Date },
   // Geofencing fields (for employees who work at specific locations)

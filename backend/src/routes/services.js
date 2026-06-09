@@ -9,7 +9,7 @@ const { body } = require('express-validator');
 const router = express.Router();
 const serviceController = require('../controllers/serviceController');
 const { auth, authorize } = require('../middlewares/auth');
-const { validate } = require('../middlewares/validate');
+const { validate, validateObjectId } = require('../middlewares/validate');
 
 router.use(auth);
 
@@ -58,7 +58,7 @@ router.get('/', serviceController.getAllServices);
  *       500:
  *         description: Server Error
  */
-router.get('/:id', serviceController.getService);
+router.get('/:id', validateObjectId('id'), serviceController.getService);
 
 /**
  * @swagger
@@ -119,7 +119,7 @@ router.post('/', authorize('admin', 'manager'), [
  *       500:
  *         description: Server Error
  */
-router.put('/:id', authorize('admin', 'manager'), serviceController.updateService);
+router.put('/:id', authorize('admin', 'manager'), validateObjectId('id'), serviceController.updateService);
 
 /**
  * @swagger
@@ -145,6 +145,6 @@ router.put('/:id', authorize('admin', 'manager'), serviceController.updateServic
  *       500:
  *         description: Server Error
  */
-router.delete('/:id', authorize('admin'), serviceController.deleteService);
+router.delete('/:id', authorize('admin'), validateObjectId('id'), serviceController.deleteService);
 
 module.exports = router;

@@ -9,7 +9,7 @@ const { body } = require('express-validator');
 const router = express.Router();
 const customerController = require('../controllers/customerController');
 const { auth } = require('../middlewares/auth');
-const { validate } = require('../middlewares/validate');
+const { validate, validateObjectId } = require('../middlewares/validate');
 
 router.use(auth);
 
@@ -68,7 +68,7 @@ router.get('/retention-alerts', customerController.getRetentionAlerts);
  *       500:
  *         description: Server Error
  */
-router.get('/:id', customerController.getCustomer);
+router.get('/:id', validateObjectId('id'), customerController.getCustomer);
 
 /**
  * @swagger
@@ -94,7 +94,7 @@ router.get('/:id', customerController.getCustomer);
  *       500:
  *         description: Server Error
  */
-router.get('/:id/visit-history', customerController.getVisitHistory);
+router.get('/:id/visit-history', validateObjectId('id'), customerController.getVisitHistory);
 
 /**
  * @swagger
@@ -155,7 +155,7 @@ router.post('/', [
  *       500:
  *         description: Server Error
  */
-router.put('/:id', customerController.updateCustomer);
+router.put('/:id', validateObjectId('id'), customerController.updateCustomer);
 
 /**
  * @swagger
@@ -181,6 +181,6 @@ router.put('/:id', customerController.updateCustomer);
  *       500:
  *         description: Server Error
  */
-router.delete('/:id', customerController.deleteCustomer);
+router.delete('/:id', validateObjectId('id'), customerController.deleteCustomer);
 
 module.exports = router;

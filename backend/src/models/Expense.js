@@ -8,9 +8,9 @@ const expenseItemSchema = new mongoose.Schema({
 }, { _id: false });
 
 const expenseSchema = new mongoose.Schema({
-  branch_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch', required: true },
-  employee_id: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  category_id: { type: mongoose.Schema.Types.ObjectId, ref: 'ExpenseCategory', default: null },
+  branch_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch', required: true, index: true },
+  employee_id: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+  category_id: { type: mongoose.Schema.Types.ObjectId, ref: 'ExpenseCategory', default: null, index: true },
   title: { type: String, default: '' },
   items: { type: [expenseItemSchema], default: [] },
   grand_total: { type: Number, required: true },

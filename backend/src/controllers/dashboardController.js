@@ -9,6 +9,11 @@ const { successResponse } = require('../utils/responseHelper');
 const getDashboard = async (req, res, next) => {
   try {
     const { branch_id } = req.query;
+
+    if (branch_id && !mongoose.Types.ObjectId.isValid(branch_id)) {
+      return res.status(400).json({ success: false, error: 'Invalid branch ID format', message: 'Invalid branch ID format' });
+    }
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
@@ -18,35 +23,41 @@ const getDashboard = async (req, res, next) => {
     const isValidBranch = branch_id && mongoose.Types.ObjectId.isValid(branch_id);
     const branchFilter = isValidBranch ? { branch_id: new mongoose.Types.ObjectId(branch_id) } : {};
 
-    const todayInvoices = await Invoice.findAll({ ...branchFilter, date: today.toISOString() });
+    const CustomerModel = mongoose.model('Customer');
+
+    const [
+      todayInvoices,
+      monthInvoices,
+      todayPayments,
+      attendanceRecords,
+      lowStock,
+      retentionAlerts,
+      totalCustomers
+    ] = await Promise.all([
+      Invoice.findAll({ ...branchFilter, date: today.toISOString() }),
+      Invoice.findAll({ 
+        ...branchFilter, 
+        start_date: firstDayOfMonth.toISOString(), 
+        end_date: tomorrow.toISOString() 
+      }),
+      Payment.findAll({ ...branchFilter, date: today.toISOString() }),
+      Attendance.getTodayAttendance(branch_id),
+      Inventory.getLowStockAlerts(branch_id),
+      Customer.getRetentionAlerts(branch_id),
+      isValidBranch
+        ? CustomerModel.countDocuments({ branch_id: new mongoose.Types.ObjectId(branch_id) })
+        : CustomerModel.countDocuments()
+    ]);
+
     const todayRevenue = todayInvoices.reduce((sum, inv) => sum + (inv.final_amount || 0), 0);
-    
-    const monthInvoices = await Invoice.findAll({ 
-      ...branchFilter, 
-      start_date: firstDayOfMonth.toISOString(), 
-      end_date: tomorrow.toISOString() 
-    });
     const monthlyRevenue = monthInvoices.reduce((sum, inv) => sum + (inv.final_amount || 0), 0);
 
-    const todayPayments = await Payment.findAll({ ...branchFilter, date: today.toISOString() });
     const collectionStats = todayPayments.reduce((stats, pay) => {
       stats.total += pay.amount || 0;
       if (pay.payment_type === 'UPI') stats.upi += pay.amount || 0;
       if (pay.payment_type === 'CASH') stats.cash += pay.amount || 0;
       return stats;
     }, { total: 0, upi: 0, cash: 0 });
-
-    const attendanceRecords = await Attendance.getTodayAttendance(branch_id);
-    
-    const lowStock = await Inventory.getLowStockAlerts(branch_id);
-    const retentionAlerts = await Customer.getRetentionAlerts(branch_id);
-    
-    const UserModel = mongoose.model('User');
-    const CustomerModel = mongoose.model('Customer');
-    let totalCustomers = await CustomerModel.countDocuments();
-    if (isValidBranch) {
-      totalCustomers = await CustomerModel.countDocuments({ branch_id: new mongoose.Types.ObjectId(branch_id) });
-    }
 
     const dashboard = {
       today: {
@@ -122,6 +133,10 @@ const getRevenueTrend = async (req, res, next) => {
   try {
     const { branch_id, range = 'week' } = req.query;
     
+    if (branch_id && !mongoose.Types.ObjectId.isValid(branch_id)) {
+      return res.status(400).json({ success: false, error: 'Invalid branch ID format', message: 'Invalid branch ID format' });
+    }
+    
     const days = range === 'month' ? 30 : 7;
     const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
     startDate.setHours(0, 0, 0, 0);
@@ -131,7 +146,7 @@ const getRevenueTrend = async (req, res, next) => {
       status: 'completed'
     };
 
-    if (branch_id && mongoose.Types.ObjectId.isValid(branch_id)) {
+    if (branch_id) {
       matchFilter.branch_id = new mongoose.Types.ObjectId(branch_id);
     }
 
@@ -161,6 +176,11 @@ const getRevenueTrend = async (req, res, next) => {
 const getRevenueChart = async (req, res, next) => {
   try {
     const { branch_id, year, month } = req.query;
+    
+    if (branch_id && !mongoose.Types.ObjectId.isValid(branch_id)) {
+      return res.status(400).json({ success: false, error: 'Invalid branch ID format', message: 'Invalid branch ID format' });
+    }
+    
     if (!branch_id) {
       return getRevenueTrend(req, res, next);
     }
@@ -174,6 +194,11 @@ const getRevenueChart = async (req, res, next) => {
 const getTopPerformers = async (req, res, next) => {
   try {
     const { branch_id } = req.query;
+    
+    if (branch_id && !mongoose.Types.ObjectId.isValid(branch_id)) {
+      return res.status(400).json({ success: false, error: 'Invalid branch ID format', message: 'Invalid branch ID format' });
+    }
+    
     const isValidBranch = branch_id && mongoose.Types.ObjectId.isValid(branch_id);
     
     const today = new Date();

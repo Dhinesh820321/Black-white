@@ -9,7 +9,7 @@ const { body } = require('express-validator');
 const router = express.Router();
 const branchController = require('../controllers/branchController');
 const { auth, authorize } = require('../middlewares/auth');
-const { validate } = require('../middlewares/validate');
+const { validate, validateObjectId } = require('../middlewares/validate');
 
 router.use(auth);
 
@@ -58,7 +58,7 @@ router.get('/', branchController.getAllBranches);
  *       500:
  *         description: Server Error
  */
-router.get('/:id', branchController.getBranch);
+router.get('/:id', validateObjectId('id'), branchController.getBranch);
 
 /**
  * @swagger
@@ -119,7 +119,7 @@ router.post('/', authorize('admin'), [
  *       500:
  *         description: Server Error
  */
-router.put('/:id', authorize('admin'), branchController.updateBranch);
+router.put('/:id', authorize('admin'), validateObjectId('id'), branchController.updateBranch);
 
 /**
  * @swagger
@@ -145,6 +145,6 @@ router.put('/:id', authorize('admin'), branchController.updateBranch);
  *       500:
  *         description: Server Error
  */
-router.delete('/:id', authorize('admin'), branchController.deleteBranch);
+router.delete('/:id', authorize('admin'), validateObjectId('id'), branchController.deleteBranch);
 
 module.exports = router;

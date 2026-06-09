@@ -37,6 +37,7 @@ const attendanceSchema = new mongoose.Schema({
 });
 
 attendanceSchema.index({ employee_id: 1, date: 1 }, { unique: true });
+attendanceSchema.index({ branch_id: 1, date: -1 });
 
 attendanceSchema.methods.calculateStatus = function() {
   if (!this.check_in_time) {

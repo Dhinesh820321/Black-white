@@ -58,9 +58,13 @@ const createInvoice = async (req, res, next) => {
   try {
     console.log('📋 CREATE INVOICE - Request body:', JSON.stringify(req.body, null, 2));
 
-    const { customer_id, mobile, customer_name, total_amount, tax_amount, discount, final_amount, payment_type, notes } = req.body;
-    const items = req.body.items || req.body.services;
+    const { customer_id, mobile, customer_name, tax_amount, discount, payment_type, notes } = req.body;
+    const rawItems = req.body.items || req.body.services;
     
+    if (!rawItems || !Array.isArray(rawItems) || rawItems.length === 0) {
+      return errorResponse(res, 'At least one service item is required', 400);
+    }
+
     const employeeId = req.user._id || req.user.id;
     let branchId = req.body.branch_id || req.user.branch_id;
     
@@ -68,11 +72,61 @@ const createInvoice = async (req, res, next) => {
       branchId = branchId._id || branchId.id;
     }
 
+    if (!branchId) {
+      return errorResponse(res, 'Branch ID missing. Please contact admin.', 400);
+    }
+
+    if (!payment_type || !['CASH', 'UPI', 'CARD'].includes(payment_type)) {
+      return errorResponse(res, 'Valid payment type is required (CASH, UPI, or CARD)', 400);
+    }
+
+    // Normalize items to ensure they have service_id and quantity
+    const normalizedItems = rawItems.map(item => {
+      const service_id = item.service_id || item.id || item.service;
+      if (!service_id) {
+        throw new Error('Each item must have a valid service_id');
+      }
+      return {
+        service_id,
+        quantity: Number(item.quantity) || 1
+      };
+    });
+
+    // Fetch actual prices from DB to calculate totals on the server (prevent client price manipulation)
+    const ServiceModel = mongoose.model('Service');
+    const serviceIds = normalizedItems.map(item => item.service_id);
+    const dbServices = await ServiceModel.find({ _id: { $in: serviceIds } }).lean();
+
+    let calculatedTotalAmount = 0;
+    const processedItems = normalizedItems.map(item => {
+      const dbService = dbServices.find(s => s._id.toString() === item.service_id.toString());
+      if (!dbService) {
+        throw new Error(`Service not found: ${item.service_id}`);
+      }
+      
+      const price = dbService.price || 0;
+      const qty = Number(item.quantity) || 1;
+      const gstPercent = dbService.gst_percentage !== undefined ? dbService.gst_percentage : 0;
+      const subtotal = price * qty;
+      calculatedTotalAmount += subtotal;
+
+      return {
+        service_id: item.service_id,
+        quantity: qty,
+        price: price,
+        gst_percentage: gstPercent,
+        subtotal: subtotal
+      };
+    });
+
+    const parsedDiscount = Number(discount) || 0;
+    const parsedTaxAmount = Number(tax_amount) || 0;
+    const calculatedFinalAmount = Math.max(0, calculatedTotalAmount + parsedTaxAmount - parsedDiscount);
+
     let finalCustomerId = customer_id || null;
 
-    // Calculate invoice amount for loyalty points
-    const invoiceAmount = Number(final_amount) || Number(total_amount) || 0;
-    const loyaltyPointsEarned = Math.floor(invoiceAmount / 100);
+    // Calculate loyalty points using server-side calculated final amount
+    const loyaltyPointsEarned = Math.floor(calculatedFinalAmount / 100);
 
     // Handle customer by mobile
     if (mobile) {
@@ -83,31 +137,27 @@ const createInvoice = async (req, res, next) => {
 
       if (!existingCustomer) {
         // CASE 1: NEW CUSTOMER - Create with visit_count = 0, last_visit = null
-        // Add loyalty points for first purchase even though they remain "New"
         console.log('🆕 Creating NEW customer');
         const newCustomer = await Customer.create({
           name: customer_name || 'Walk-in',
           phone: mobile,
           last_visit: null,
           visit_count: 0,
-          loyalty_points: loyaltyPointsEarned  // Add points for first purchase
+          loyalty_points: loyaltyPointsEarned
         });
         finalCustomerId = newCustomer.id || newCustomer._id;
         console.log('✅ NEW customer created with ID:', finalCustomerId, '- visit_count: 0, loyalty_points:', loyaltyPointsEarned);
-        // ❌ DO NOT update last_visit for first invoice - they remain "New"
       } else {
         // CASE 2: EXISTING CUSTOMER - Increment visit_count, update last_visit, add loyalty points
         console.log('🔄 Updating EXISTING customer - recording visit');
-        await Customer.recordVisit(existingCustomer._id, invoiceAmount);
+        await Customer.recordVisit(existingCustomer._id, calculatedFinalAmount);
         finalCustomerId = existingCustomer._id;
         console.log('✅ visit_count incremented, last_visit updated, loyalty_points added for customer:', finalCustomerId);
       }
     } else if (customer_id && !mobile) {
-      // Handle case where customer_id is passed directly (no mobile lookup)
       const existingCustomer = await Customer.findById(customer_id);
       if (existingCustomer) {
-        // Record visit for existing customer
-        await Customer.recordVisit(customer_id, invoiceAmount);
+        await Customer.recordVisit(customer_id, calculatedFinalAmount);
         console.log('🔄 Recorded visit for customer:', customer_id, '- loyalty points:', loyaltyPointsEarned);
       }
     }
@@ -117,32 +167,21 @@ const createInvoice = async (req, res, next) => {
       employeeId, 
       branchId,
       customer_id: finalCustomerId,
-      itemCount: items?.length,
+      itemCount: processedItems.length,
       payment_type,
-      total_amount
+      total_amount: calculatedTotalAmount,
+      final_amount: calculatedFinalAmount
     });
-
-    if (!branchId) {
-      return errorResponse(res, 'Branch ID missing. Please contact admin.', 400);
-    }
-
-    if (!items || items.length === 0) {
-      return errorResponse(res, 'At least one service item is required', 400);
-    }
-
-    if (!payment_type || !['CASH', 'UPI', 'CARD'].includes(payment_type)) {
-      return errorResponse(res, 'Valid payment type is required (CASH, UPI, or CARD)', 400);
-    }
 
     const invoice = await Invoice.create({ 
       branch_id: branchId, 
       customer_id: finalCustomerId, 
       employee_id: employeeId, 
-      items, 
-      total_amount: Number(total_amount) || Number(final_amount) || 0, 
-      tax_amount: Number(tax_amount) || 0, 
-      discount: Number(discount) || 0, 
-      final_amount: Number(final_amount) || Number(total_amount) || 0, 
+      items: processedItems, 
+      total_amount: calculatedTotalAmount, 
+      tax_amount: parsedTaxAmount, 
+      discount: parsedDiscount, 
+      final_amount: calculatedFinalAmount, 
       payment_type, 
       notes 
     });

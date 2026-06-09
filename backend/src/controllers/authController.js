@@ -426,7 +426,30 @@ const uploadProfileImage = async (req, res, next) => {
     }
 
     const userId = req.user._id || req.user.id;
-    const profile_image = `/uploads/profile/${req.file.filename}`;
+    let profile_image;
+
+    const isCloudinaryConfigured = process.env.CLOUDINARY_CLOUD_NAME && 
+                                   process.env.CLOUDINARY_API_KEY && 
+                                   process.env.CLOUDINARY_API_SECRET;
+
+    if (isCloudinaryConfigured) {
+      const cloudinary = require('cloudinary').v2;
+      cloudinary.config({
+        cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+        api_key: process.env.CLOUDINARY_API_KEY,
+        api_secret: process.env.CLOUDINARY_API_SECRET
+      });
+
+      const result = await new Promise((resolve, reject) => {
+        cloudinary.uploader.upload_stream(
+          { folder: 'salon-employees', resource_type: 'image' },
+          (error, result) => error ? reject(error) : resolve(result)
+        ).end(req.file.buffer);
+      });
+      profile_image = result.secure_url;
+    } else {
+      profile_image = `/uploads/profile/${req.file.filename}`;
+    }
 
     await UserModel.findByIdAndUpdate(userId, { profile_image });
 

@@ -50,12 +50,20 @@ const checkIn = async (req, res, next) => {
       const branch = await BranchModel.findById(branchId).lean();
       
       if (branch && branch.geo_latitude != null && branch.geo_longitude != null) {
-        if (!latitude || !longitude) {
+        if (latitude === undefined || longitude === undefined || latitude === null || longitude === null) {
           return errorResponse(res, 'Location access required for check-in', 400);
         }
 
         const lat1 = parseFloat(latitude);
         const lon1 = parseFloat(longitude);
+
+        if (isNaN(lat1) || lat1 < -90 || lat1 > 90) {
+          return errorResponse(res, 'Invalid latitude coordinate', 400);
+        }
+        if (isNaN(lon1) || lon1 < -180 || lon1 > 180) {
+          return errorResponse(res, 'Invalid longitude coordinate', 400);
+        }
+
         const lat2 = parseFloat(branch.geo_latitude);
         const lon2 = parseFloat(branch.geo_longitude);
         const radius = parseFloat(branch.geo_radius) || 200;
@@ -102,12 +110,20 @@ const checkOut = async (req, res, next) => {
       const branch = await BranchModel.findById(branchId).lean();
       
       if (branch && branch.geo_latitude != null && branch.geo_longitude != null) {
-        if (!latitude || !longitude) {
+        if (latitude === undefined || longitude === undefined || latitude === null || longitude === null) {
           return errorResponse(res, 'Location required for check-out', 400);
         }
 
         const lat1 = parseFloat(latitude);
         const lon1 = parseFloat(longitude);
+
+        if (isNaN(lat1) || lat1 < -90 || lat1 > 90) {
+          return errorResponse(res, 'Invalid latitude coordinate', 400);
+        }
+        if (isNaN(lon1) || lon1 < -180 || lon1 > 180) {
+          return errorResponse(res, 'Invalid longitude coordinate', 400);
+        }
+
         const lat2 = parseFloat(branch.geo_latitude);
         const lon2 = parseFloat(branch.geo_longitude);
         const radius = parseFloat(branch.geo_radius) || 200;

@@ -30,6 +30,7 @@ const auth = async (req, res, next) => {
     if (user.branch_id && typeof user.branch_id === 'object') {
       user.branch_id = user.branch_id._id || user.branch_id.id;
     }
+    delete user.password;
     req.user = user;
     console.log(`✅ Auth success: ${user.name} (${user.role}) - branch: ${user.branch_id}`);
     next();

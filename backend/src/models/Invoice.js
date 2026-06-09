@@ -10,9 +10,9 @@ const invoiceItemSchema = new mongoose.Schema({
 });
 
 const invoiceSchema = new mongoose.Schema({
-  branch_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch', required: true },
-  customer_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Customer' },
-  employee_id: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  branch_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch', required: true, index: true },
+  customer_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Customer', index: true },
+  employee_id: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
   invoice_number: { type: String, unique: true },
   items: [invoiceItemSchema],
   total_amount: { type: Number, required: true },
@@ -20,11 +20,14 @@ const invoiceSchema = new mongoose.Schema({
   discount: { type: Number, default: 0 },
   final_amount: { type: Number, required: true },
   payment_type: { type: String, enum: ['CASH', 'UPI', 'CARD'], required: true },
-  status: { type: String, enum: ['pending', 'completed', 'cancelled'], default: 'completed' },
+  status: { type: String, enum: ['pending', 'completed', 'cancelled'], default: 'completed', index: true },
   notes: { type: String }
 }, {
   timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }
 });
+
+invoiceSchema.index({ branch_id: 1, created_at: -1 });
+invoiceSchema.index({ employee_id: 1, created_at: -1 });
 
 const InvoiceModel = mongoose.model('Invoice', invoiceSchema);
 

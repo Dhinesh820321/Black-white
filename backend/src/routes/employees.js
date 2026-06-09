@@ -9,7 +9,7 @@ const { body } = require('express-validator');
 const router = express.Router();
 const employeeController = require('../controllers/employeeController');
 const { auth, authorize, branchAccess } = require('../middlewares/auth');
-const { validate } = require('../middlewares/validate');
+const { validate, validateObjectId } = require('../middlewares/validate');
 
 router.use(auth);
 
@@ -58,7 +58,7 @@ router.get('/', branchAccess, employeeController.getAllEmployees);
  *       500:
  *         description: Server Error
  */
-router.get('/:id', employeeController.getEmployee);
+router.get('/:id', validateObjectId('id'), employeeController.getEmployee);
 
 /**
  * @swagger
@@ -84,7 +84,7 @@ router.get('/:id', employeeController.getEmployee);
  *       500:
  *         description: Server Error
  */
-router.get('/:id/performance', employeeController.getEmployeePerformance);
+router.get('/:id/performance', validateObjectId('id'), employeeController.getEmployeePerformance);
 
 /**
  * @swagger
@@ -147,7 +147,7 @@ router.post('/', authorize('admin'), [
  *       500:
  *         description: Server Error
  */
-router.put('/:id', authorize('admin', 'manager'), employeeController.updateEmployee);
+router.put('/:id', authorize('admin', 'manager'), validateObjectId('id'), employeeController.updateEmployee);
 
 /**
  * @swagger
@@ -173,7 +173,7 @@ router.put('/:id', authorize('admin', 'manager'), employeeController.updateEmplo
  *       500:
  *         description: Server Error
  */
-router.delete('/:id', authorize('admin'), employeeController.deleteEmployee);
+router.delete('/:id', authorize('admin'), validateObjectId('id'), employeeController.deleteEmployee);
 
 router.get('/phone/:phone', employeeController.getEmployeeByPhone);
 router.delete('/phone/:phone', authorize('admin'), employeeController.deleteEmployeeByPhone);
