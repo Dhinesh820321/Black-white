@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const Customer = require('../models/Customer');
 const { successResponse, errorResponse } = require('../utils/responseHelper');
 
