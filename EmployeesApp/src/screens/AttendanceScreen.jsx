@@ -70,7 +70,14 @@ export default function AttendanceScreen({ navigation }) {
   useFocusEffect(
     useCallback(() => {
       fetchAttendance();
-    }, [fetchAttendance])
+      if (user && !user.branch_id && user.role !== 'admin') {
+        Alert.alert(
+          'No Branch Assigned',
+          'Your account has no branch assigned. Please contact your admin to assign a branch.',
+          [{ text: 'OK' }]
+        );
+      }
+    }, [fetchAttendance, user])
   );
 
   const getLocation = async () => {
@@ -101,6 +108,14 @@ export default function AttendanceScreen({ navigation }) {
   };
 
   const handleCheckIn = async () => {
+    if (!user?.branch_id && user?.role !== 'admin') {
+      Alert.alert(
+        'No Branch Assigned',
+        'Your account has no branch assigned. Please contact your admin to assign a branch.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
     setActionLoading(true);
     let locationData = null;
     try {
@@ -130,6 +145,14 @@ export default function AttendanceScreen({ navigation }) {
   };
 
   const handleCheckOut = async () => {
+    if (!user?.branch_id && user?.role !== 'admin') {
+      Alert.alert(
+        'No Branch Assigned',
+        'Your account has no branch assigned. Please contact your admin to assign a branch.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
     Alert.alert(
       t('checkOutBtn'),
       t('confirm') + '?',

@@ -20,19 +20,23 @@ const auth = async (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     console.log(`   Token decoded:`, decoded);
 
-    const user = await User.findById(decoded.id);
+    const UserModel = mongoose.model('User');
+    const user = await UserModel.findById(decoded.id)
+      .populate('branch_id', 'name location geo_latitude geo_longitude geo_radius')
+      .lean();
 
     if (!user || user.status !== 'active') {
       console.log('❌ Auth failed: User not found or inactive');
       return errorResponse(res, 'Invalid token. User not found or inactive.', 401);
     }
 
-    if (user.branch_id && typeof user.branch_id === 'object') {
-      user.branch_id = user.branch_id._id || user.branch_id.id;
-    }
     delete user.password;
-    req.user = user;
-    console.log(`✅ Auth success: ${user.name} (${user.role}) - branch: ${user.branch_id}`);
+    req.user = {
+      ...user,
+      branch_id: user.branch_id?._id || user.branch_id || null,
+      branchData: user.branch_id || null
+    };
+    console.log(`✅ Auth success: ${req.user.name} (${req.user.role}) - branch: ${req.user.branch_id}`);
     next();
   } catch (error) {
     console.error(`❌ Auth error: ${error.name} - ${error.message}`);

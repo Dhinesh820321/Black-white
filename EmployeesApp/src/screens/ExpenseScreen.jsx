@@ -145,6 +145,16 @@ export default function ExpenseScreen() {
   const handleSubmit = async () => {
     if (!validateForm()) return;
 
+    const branchId = selectedBranch || (typeof user?.branch_id === 'object' ? user?.branch_id?._id : user?.branch_id);
+    if (!branchId && user?.role !== 'admin') {
+      Alert.alert(
+        'Branch Not Assigned',
+        'Your account has no branch assigned. Please contact your admin to assign a branch.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
     setLoading(true);
     try {
       // Clean up items - remove empty ones and calculate subtotals

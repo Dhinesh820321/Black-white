@@ -40,7 +40,7 @@ class User {
 
   static async findById(id) {
     if (!mongoose.Types.ObjectId.isValid(id)) return null;
-    return UserModel.findById(id).populate('branch_id', 'name').lean();
+    return UserModel.findById(id).populate('branch_id', 'name location geo_latitude geo_longitude geo_radius').lean();
   }
 
   static async findByPhone(phone) {

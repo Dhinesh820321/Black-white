@@ -42,6 +42,7 @@ const flattenUser = (user) => {
   const { password, ...safeUser } = user;
   if (safeUser.branch_id && typeof safeUser.branch_id === 'object') {
     safeUser.branch_name = safeUser.branch_id.name;
+    safeUser.branchData = safeUser.branch_id; // Keep full branch object
     safeUser.branch_id = safeUser.branch_id._id || safeUser.branch_id.id;
   }
   return safeUser;

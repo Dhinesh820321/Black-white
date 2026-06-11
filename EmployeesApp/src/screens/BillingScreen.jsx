@@ -326,6 +326,15 @@ export default function BillingScreen() {
 
   // ── Invoice submit ───────────────────────────────────────────
   const handleSubmit = async () => {
+    if (!user?.branch_id && user?.role !== 'admin') {
+      Alert.alert(
+        'Branch Not Assigned',
+        'Your account has no branch assigned. Please contact your admin to assign a branch.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
     if (selectedServices.length === 0) {
       Alert.alert(t('error'), t('selectServices'));
       return;

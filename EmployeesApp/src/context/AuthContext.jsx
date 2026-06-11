@@ -27,9 +27,18 @@ export const AuthProvider = ({ children }) => {
           if (res.success) {
             setUser(res.data);
             await AsyncStorage.setItem(USER_KEY, JSON.stringify(res.data));
+            if (res.data.branchData) {
+              await AsyncStorage.setItem('branchData', JSON.stringify(res.data.branchData));
+            } else {
+              await AsyncStorage.removeItem('branchData');
+            }
           } else if (storedUser) {
             // Use cached user if profile fetch fails
-            setUser(JSON.parse(storedUser));
+            const parsed = JSON.parse(storedUser);
+            setUser(parsed);
+            if (parsed.branchData) {
+              await AsyncStorage.setItem('branchData', JSON.stringify(parsed.branchData));
+            }
           } else {
             await clearAuth();
           }
@@ -41,7 +50,11 @@ export const AuthProvider = ({ children }) => {
             setUser(null);
           } else if (storedUser) {
             // Use cached user only if truly offline (network error)
-            setUser(JSON.parse(storedUser));
+            const parsed = JSON.parse(storedUser);
+            setUser(parsed);
+            if (parsed.branchData) {
+              await AsyncStorage.setItem('branchData', JSON.stringify(parsed.branchData));
+            }
           }
         }
       } else {
@@ -62,6 +75,11 @@ export const AuthProvider = ({ children }) => {
       if (res.success) {
         await AsyncStorage.setItem(TOKEN_KEY, res.data.token);
         await AsyncStorage.setItem(USER_KEY, JSON.stringify(res.data.user));
+        if (res.data.user?.branchData) {
+          await AsyncStorage.setItem('branchData', JSON.stringify(res.data.user.branchData));
+        } else {
+          await AsyncStorage.removeItem('branchData');
+        }
         setUser(res.data.user);
       }
       return res;
@@ -81,11 +99,17 @@ export const AuthProvider = ({ children }) => {
   const clearAuth = async () => {
     await AsyncStorage.removeItem(TOKEN_KEY);
     await AsyncStorage.removeItem(USER_KEY);
+    await AsyncStorage.removeItem('branchData');
   };
 
   const updateUser = useCallback(async (updatedUser) => {
     setUser(updatedUser);
     await AsyncStorage.setItem(USER_KEY, JSON.stringify(updatedUser));
+    if (updatedUser?.branchData) {
+      await AsyncStorage.setItem('branchData', JSON.stringify(updatedUser.branchData));
+    } else {
+      await AsyncStorage.removeItem('branchData');
+    }
   }, []);
 
   const contextValue = useMemo(() => ({

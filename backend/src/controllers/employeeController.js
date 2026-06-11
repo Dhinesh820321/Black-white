@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const User = require('../models/User');
 const { successResponse, errorResponse } = require('../utils/responseHelper');
 
@@ -64,6 +65,9 @@ const createEmployee = async (req, res, next) => {
     }
     
     const processedBranchId = branch_id === '' || branch_id === undefined || branch_id === null ? null : branch_id;
+    if (processedBranchId && !mongoose.Types.ObjectId.isValid(processedBranchId)) {
+      return errorResponse(res, 'Invalid branch ID', 400);
+    }
     
     const employee = await User.create({ 
       name: name.trim(), 
@@ -105,6 +109,15 @@ const updateEmployee = async (req, res, next) => {
     
     if (password !== undefined && password !== null && password.trim() !== '') {
       updateData.password = password.trim();
+    }
+    
+    if (updateData.branch_id !== undefined) {
+      const bId = updateData.branch_id;
+      if (bId === '' || bId === null) {
+        updateData.branch_id = null;
+      } else if (!mongoose.Types.ObjectId.isValid(bId)) {
+        return errorResponse(res, 'Invalid branch ID', 400);
+      }
     }
     
     const employee = await User.update(req.params.id, updateData);
