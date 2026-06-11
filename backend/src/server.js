@@ -38,11 +38,10 @@ const allowedOrigins = [
 
 const corsOptions = {
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error(`CORS blocked: ${origin}`));
-    }
+    if (!origin) return callback(null, true);
+    if (origin.match(/https:\/\/.*\.vercel\.app$/)) return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    callback(new Error(`CORS blocked: ${origin}`));
   },
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
@@ -52,7 +51,7 @@ const corsOptions = {
 const io = new Server(server, {
   cors: corsOptions
 });
-
+app.options('*', cors(corsOptions));
 // Apply Helmet for security headers
 app.use(helmet({
   crossOriginResourcePolicy: false // Allow loading local uploads in frontend
