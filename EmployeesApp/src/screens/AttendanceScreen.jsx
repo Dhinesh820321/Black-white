@@ -12,7 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import * as Location from 'expo-location';
-import { attendanceAPI } from '../api/api';
+import { attendanceAPI, branchesAPI } from '../api/api';
 import { useAuth } from '../context/AuthContext';
 import { useFocusEffect } from '@react-navigation/native';
 import { Clock, MapPin, CheckCircle, LogOut, History } from 'lucide-react-native';
@@ -34,6 +34,20 @@ const COLORS = {
     800: '#1f2937',
     900: '#111827',
   },
+};
+
+const getHaversineDistance = (lat1, lon1, lat2, lon2) => {
+  const R = 6371000; // Radius of the Earth in meters
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) *
+    Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) *
+    Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c; // Distance in meters
 };
 
 export default function AttendanceScreen({ navigation }) {
@@ -120,15 +134,63 @@ export default function AttendanceScreen({ navigation }) {
     let locationData = null;
     try {
       locationData = await getLocation();
+      const current = locationData;
+
+      if (user?.branch_id) {
+        const branchRes = await branchesAPI.getById(user.branch_id);
+        console.log("FULL BRANCH RESPONSE", JSON.stringify(branchRes, null, 2));
+        if (branchRes && branchRes.success && branchRes.data) {
+          const branch = branchRes.data;
+          console.log("Branch Object:", branch);
+          console.log("Geo Lat:", branch.geo_latitude);
+          console.log("Geo Lng:", branch.geo_longitude);
+          console.log("Geo Radius:", branch.geo_radius);
+          if (
+            branch.geo_latitude !== null &&
+            branch.geo_latitude !== undefined &&
+            branch.geo_longitude !== null &&
+            branch.geo_longitude !== undefined
+          ) {
+            const branchLat = parseFloat(branch.geo_latitude);
+            const branchLng = parseFloat(branch.geo_longitude);
+            const radius = parseFloat(branch.geo_radius) || 100;
+
+            const distance = Math.round(
+              getHaversineDistance(
+                current.latitude,
+                current.longitude,
+                branchLat,
+                branchLng
+              )
+            );
+
+            console.log("Branch Lat", branch.geo_latitude);
+            console.log("Branch Lng", branch.geo_longitude);
+            console.log("Employee Lat", current.latitude);
+            console.log("Employee Lng", current.longitude);
+            console.log("Distance", distance);
+
+            if (distance > radius) {
+              Alert.alert(
+                "Outside Branch",
+                `You are ${distance}m away from branch.\nAllowed radius is ${radius}m`
+              );
+              setActionLoading(false);
+              return;
+            }
+          }
+        }
+      }
+
       const payload = {
-        location: `${locationData.latitude},${locationData.longitude}`,
-        latitude: locationData.latitude,
-        longitude: locationData.longitude
+        location: `${current.latitude},${current.longitude}`,
+        latitude: current.latitude,
+        longitude: current.longitude
       };
-      
+
       console.log('📤 Check-in payload:', payload);
       const res = await attendanceAPI.checkIn(payload);
-      
+
       if (res.success) {
         Alert.alert(t('success'), t('attendanceMarked'));
         fetchAttendance();
@@ -170,7 +232,7 @@ export default function AttendanceScreen({ navigation }) {
                 latitude: locationData.latitude,
                 longitude: locationData.longitude
               };
-              
+
               console.log('📤 Check-out payload:', payload);
               const res = await attendanceAPI.checkOut(payload);
               if (res.success) {
@@ -238,14 +300,13 @@ export default function AttendanceScreen({ navigation }) {
         <View className="px-5 py-6">
           <View className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 mb-6">
             <View className="items-center mb-6">
-              <View className={`w-20 h-20 rounded-full items-center justify-center mb-4 ${
-                isCheckedIn && !isCheckedOut ? 'bg-green-100' : 'bg-gray-100'
-              }`}>
+              <View className={`w-20 h-20 rounded-full items-center justify-center mb-4 ${isCheckedIn && !isCheckedOut ? 'bg-green-100' : 'bg-gray-100'
+                }`}>
                 <Clock size={40} color={isCheckedIn && !isCheckedOut ? COLORS.success : COLORS.gray[400]} />
               </View>
               <Text className="text-xl font-bold text-gray-900">
-                {isCheckedIn && !isCheckedOut ? t('checkedIn') : 
-                 isCheckedOut ? t('completed') : t('notCheckedIn')}
+                {isCheckedIn && !isCheckedOut ? t('checkedIn') :
+                  isCheckedOut ? t('completed') : t('notCheckedIn')}
               </Text>
             </View>
 
@@ -274,9 +335,8 @@ export default function AttendanceScreen({ navigation }) {
 
             {!isCheckedOut && (
               <TouchableOpacity
-                className={`py-4 rounded-xl items-center ${
-                  isCheckedIn ? 'bg-red-500' : 'bg-primary-600'
-                }`}
+                className={`py-4 rounded-xl items-center ${isCheckedIn ? 'bg-red-500' : 'bg-primary-600'
+                  }`}
                 onPress={isCheckedIn ? handleCheckOut : handleCheckIn}
                 disabled={actionLoading}
               >

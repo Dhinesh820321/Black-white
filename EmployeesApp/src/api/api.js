@@ -98,6 +98,7 @@ export const expensesAPI = {
 
 export const branchesAPI = {
   getAll: (params) => api.get('/branches', { params }),
+  getById: (id) => api.get(`/branches/${id}`),
 };
 
 export const paymentsAPI = {

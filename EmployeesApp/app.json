@@ -1,13 +1,13 @@
 {
   "expo": {
-    "name": "Salon Master",
-    "slug": "salon-master-employees",
-    "version": "1.0.0",
+    "name": "Best & White",
+    "slug": "employees-app",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "splash": {
-      "image": "./assets/splash.png",
+      "image": "./assets/splash-new.png",
       "resizeMode": "contain",
       "backgroundColor": "#0A1628"
     },
@@ -29,17 +29,14 @@
         "backgroundColor": "#0A1628"
       },
       "package": "com.salonmaster.employees",
-      "versionCode": 1,
+      "versionCode": 2,
       "permissions": [
         "CAMERA",
         "READ_EXTERNAL_STORAGE",
         "WRITE_EXTERNAL_STORAGE",
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION"
-      ],
-      "config": {
-        "usesCleartextTraffic": true
-      }
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png",

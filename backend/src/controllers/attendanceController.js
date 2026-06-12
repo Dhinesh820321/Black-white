@@ -49,6 +49,7 @@ const checkIn = async (req, res, next) => {
       const BranchModel = mongoose.model('Branch');
       const branch = await BranchModel.findById(branchId).lean();
       
+      
       if (branch && branch.geo_latitude != null && branch.geo_longitude != null) {
         if (latitude === undefined || longitude === undefined || latitude === null || longitude === null) {
           return errorResponse(res, 'Location access required for check-in', 400);
@@ -80,7 +81,7 @@ const checkIn = async (req, res, next) => {
         console.log('📍 Distance check:', { lat1, lon1, lat2, lon2, radius, distance: Math.round(distance) });
 
         if (distance > radius) {
-          return errorResponse(res, `You must be within ${radius}m of the branch. Distance: ${Math.round(distance)}m`, 403);
+          return errorResponse(res, 'You are outside branch geo-fence', 400);
         }
       }
     }
