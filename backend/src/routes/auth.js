@@ -11,7 +11,7 @@ const authController = require('../controllers/authController');
 const { auth, authorize } = require('../middlewares/auth');
 const { validate } = require('../middlewares/validate');
 const User = require('../models/User');
-const upload = require('../config/upload');
+const { uploadProfile } = require('../config/cloudinary');
 
 // ==================== PUBLIC ROUTES ====================
 
@@ -195,7 +195,50 @@ router.post('/password/change', auth, [
   body('new_password').isLength({ min: 6 }).withMessage('New password must be at least 6 characters')
 ], validate, authController.changePassword);
 
-router.post('/upload-profile-image', auth, upload.single('image'), authController.uploadProfileImage);
+router.post('/upload-profile-image', auth, uploadProfile.single('image'), authController.uploadProfileImage);
+
+// Profile photo upload route
+router.post(
+  '/profile/photo',
+  auth,
+  uploadProfile.single('photo'),
+  async (req, res, next) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'No file uploaded' 
+        });
+      }
+
+      // Cloudinary returns the URL directly in req.file.path
+      const photoUrl = req.file.path;
+
+      // Update user's profile photo in MongoDB
+      const UserModel = require('mongoose').model('User');
+      const user = await UserModel.findByIdAndUpdate(
+        req.user._id || req.user.id,
+        { 
+          profile_photo: photoUrl,
+          profile_image: photoUrl
+        },
+        { new: true }
+      );
+
+      return res.json({
+        success: true,
+        message: 'Profile photo updated successfully',
+        data: { 
+          profile_photo: photoUrl,
+          profile_image: photoUrl,
+          user 
+        }
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
 
 // ==================== LEGACY ROUTES (for backward compatibility) ====================
 

@@ -429,33 +429,44 @@ const uploadProfileImage = async (req, res, next) => {
     const userId = req.user._id || req.user.id;
     let profile_image;
 
-    const isCloudinaryConfigured = process.env.CLOUDINARY_CLOUD_NAME && 
-                                   process.env.CLOUDINARY_API_KEY && 
-                                   process.env.CLOUDINARY_API_SECRET;
+    // Cloudinary storage engine returns the URL in req.file.path
+    if (req.file.path) {
+      profile_image = req.file.path;
+    } else if (req.file.buffer) {
+      const isCloudinaryConfigured = process.env.CLOUDINARY_CLOUD_NAME && 
+                                     process.env.CLOUDINARY_API_KEY && 
+                                     process.env.CLOUDINARY_API_SECRET;
 
-    if (isCloudinaryConfigured) {
-      const cloudinary = require('cloudinary').v2;
-      cloudinary.config({
-        cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-        api_key: process.env.CLOUDINARY_API_KEY,
-        api_secret: process.env.CLOUDINARY_API_SECRET
-      });
+      if (isCloudinaryConfigured) {
+        const cloudinary = require('cloudinary').v2;
+        cloudinary.config({
+          cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+          api_key: process.env.CLOUDINARY_API_KEY,
+          api_secret: process.env.CLOUDINARY_API_SECRET
+        });
 
-      const result = await new Promise((resolve, reject) => {
-        cloudinary.uploader.upload_stream(
-          { folder: 'salon-employees', resource_type: 'image' },
-          (error, result) => error ? reject(error) : resolve(result)
-        ).end(req.file.buffer);
-      });
-      profile_image = result.secure_url;
+        const result = await new Promise((resolve, reject) => {
+          cloudinary.uploader.upload_stream(
+            { folder: 'salon-employees', resource_type: 'image' },
+            (error, result) => error ? reject(error) : resolve(result)
+          ).end(req.file.buffer);
+        });
+        profile_image = result.secure_url;
+      } else {
+        return errorResponse(res, 'Cloudinary is not configured', 500);
+      }
     } else {
       profile_image = `/uploads/profile/${req.file.filename}`;
     }
 
-    await UserModel.findByIdAndUpdate(userId, { profile_image });
+    await UserModel.findByIdAndUpdate(userId, { 
+      profile_image,
+      profile_photo: profile_image
+    });
 
     return successResponse(res, {
       profile_image,
+      profile_photo: profile_image,
       message: 'Profile image uploaded successfully'
     });
   } catch (error) {
