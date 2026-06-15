@@ -201,6 +201,67 @@ export default function ProfileScreen({ navigation }) {
     );
   };
 
+  const handlePhotoPress = () => {
+    Alert.alert(
+      'Profile Photo',
+      'What would you like to do?',
+      [
+        {
+          text: 'Change Photo',
+          onPress: showImageOptions,
+        },
+        {
+          text: 'Remove Photo',
+          style: 'destructive',
+          onPress: handleRemovePhoto,
+        },
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+      ]
+    );
+  };
+
+  const handleRemovePhoto = async () => {
+    setUploading(true);
+    try {
+      const token = await AsyncStorage.getItem('@auth_token');
+      
+      const response = await fetch(`${API_URL}/auth/profile/photo`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Update local state
+        setProfileImageUri(null);
+        
+        // Update user in AuthContext + AsyncStorage
+        if (user) {
+          const updatedUserData = {
+            ...user,
+            profile_photo: null,
+            profile_image: null
+          };
+          await updateUser(updatedUserData);
+        }
+        Alert.alert('Success', 'Profile photo removed successfully!');
+      } else {
+        Alert.alert('Error', data.message || 'Failed to remove photo');
+      }
+    } catch (error) {
+      console.error('Remove photo error:', error);
+      Alert.alert('Error', 'Failed to remove photo. Try again.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const profileImageFullUri = useMemo(() => {
     const imagePath = profileImageUri || user?.profile_image || user?.profile_photo;
     if (!imagePath) return null;
@@ -225,7 +286,7 @@ export default function ProfileScreen({ navigation }) {
         <View className="bg-white px-5 py-8 items-center border-b border-gray-100">
           <TouchableOpacity 
             className="relative" 
-            onPress={showImageOptions}
+            onPress={handlePhotoPress}
             disabled={uploading}
           >
             {uploading ? (

@@ -240,6 +240,55 @@ router.post(
   }
 );
 
+// Remove profile photo
+router.delete('/profile/photo', auth, async (req, res, next) => {
+  try {
+    const userId = req.user._id || req.user.id;
+    const UserModel = require('mongoose').model('User');
+    
+    // Get current user to find Cloudinary public_id
+    const user = await UserModel.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+    
+    // Delete from Cloudinary if URL exists
+    const photoUrl = user.profile_photo || user.profile_image;
+    if (photoUrl && photoUrl.includes('cloudinary.com')) {
+      try {
+        const urlParts = photoUrl.split('/');
+        const filename = urlParts[urlParts.length - 1].split('.')[0];
+        const publicId = `salon-profiles/${filename}`;
+        
+        const { cloudinary } = require('../config/cloudinary');
+        await cloudinary.uploader.destroy(publicId);
+      } catch (cloudinaryErr) {
+        console.error('Error deleting image from Cloudinary:', cloudinaryErr.message);
+      }
+    }
+
+    // Remove from MongoDB
+    await UserModel.findByIdAndUpdate(
+      userId,
+      { 
+        profile_photo: null, 
+        profile_image: null 
+      },
+      { new: true }
+    );
+
+    return res.json({
+      success: true,
+      message: 'Profile photo removed successfully'
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // ==================== LEGACY ROUTES (for backward compatibility) ====================
 
 router.post('/login/password', [
