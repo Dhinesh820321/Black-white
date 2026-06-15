@@ -244,50 +244,59 @@ router.post(
 router.delete('/profile/photo', auth, async (req, res, next) => {
   try {
     const userId = req.user._id || req.user.id;
-    const UserModel = require('mongoose').model('User');
     
-    // Get current user to find Cloudinary public_id
-    const user = await UserModel.findById(userId);
+    // Get current user to find photo URL
+    const user = await User.findById(userId);
+    
     if (!user) {
       return res.status(404).json({
         success: false,
         message: 'User not found'
       });
     }
-    
+
     // Delete from Cloudinary if URL exists
     const photoUrl = user.profile_photo || user.profile_image;
+    
     if (photoUrl && photoUrl.includes('cloudinary.com')) {
       try {
+        // Extract public_id from Cloudinary URL
         const urlParts = photoUrl.split('/');
         const filename = urlParts[urlParts.length - 1].split('.')[0];
         const publicId = `salon-profiles/${filename}`;
         
         const { cloudinary } = require('../config/cloudinary');
         await cloudinary.uploader.destroy(publicId);
-      } catch (cloudinaryErr) {
-        console.error('Error deleting image from Cloudinary:', cloudinaryErr.message);
+        console.log('✅ Photo deleted from Cloudinary:', publicId);
+      } catch (cloudinaryError) {
+        console.error('Cloudinary delete error:', cloudinaryError);
       }
     }
 
-    // Remove from MongoDB
-    await UserModel.findByIdAndUpdate(
+    // Remove photo URL from MongoDB
+    await User.findByIdAndUpdate(
       userId,
       { 
-        profile_photo: null, 
-        profile_image: null 
+        $unset: { 
+          profile_photo: 1,
+          profile_image: 1
+        }
       },
       { new: true }
     );
 
     return res.json({
       success: true,
-      message: 'Profile photo removed successfully'
+      message: 'Profile photo removed successfully',
+      data: { profile_photo: null }
     });
+    
   } catch (error) {
+    console.error('Remove photo error:', error);
     next(error);
   }
 });
+
 
 // ==================== LEGACY ROUTES (for backward compatibility) ====================
 

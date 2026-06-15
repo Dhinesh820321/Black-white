@@ -44,6 +44,10 @@ class User {
     return UserModel.findById(id).populate('branch_id', 'name location geo_latitude geo_longitude geo_radius').lean();
   }
 
+  static async findByIdAndUpdate(id, update, options) {
+    return UserModel.findByIdAndUpdate(id, update, options);
+  }
+
   static async findByPhone(phone) {
     const normalizedPhone = phone.replace(/[\s-]/g, '');
     return UserModel.findOne({ phone: normalizedPhone }).populate('branch_id').lean();
