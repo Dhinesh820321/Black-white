@@ -18,12 +18,12 @@ const formatHours = (decimalHours) => {
 export default function Attendance() {
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
-  
+
   const [attendance, setAttendance] = useState([]);
   const [branches, setBranches] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
-  
+
   const [selectedBranch, setSelectedBranch] = useState('');
   const [selectedEmployee, setSelectedEmployee] = useState('');
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
@@ -32,9 +32,9 @@ export default function Attendance() {
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   });
   const [filterType, setFilterType] = useState('date');
-  
+
   const [viewMode, setViewMode] = useState('summary');
-  
+
   const [stats, setStats] = useState({ totalPresent: 0, totalAbsent: 0, totalHours: 0 });
   const [pagination, setPagination] = useState({ summaryPage: 1, detailsPage: 1, total: 0 });
   const [exporting, setExporting] = useState(false);
@@ -72,9 +72,9 @@ export default function Attendance() {
       try {
         setLoading(true);
         const params = {};
-        
+
         if (selectedBranchRef.current) params.branch_id = selectedBranchRef.current;
-        
+
         const res = await attendanceAPI.getAll(params);
         if (res?.data?.success && Array.isArray(res.data.data)) {
           setAttendance(res.data.data);
@@ -92,7 +92,7 @@ export default function Attendance() {
 
     loadAll();
 
-    const interval = setInterval(loadAttendance, 5000);
+    const interval = setInterval(loadAttendance, 10000);
     return () => clearInterval(interval);
   }, []);
 
@@ -100,31 +100,31 @@ export default function Attendance() {
     return attendance.filter(record => {
       const recordDate = record.date || '';
       const recordMonth = recordDate.substring(0, 7);
-      
+
       let matchesDate = true;
       if (filterType === 'date') {
         matchesDate = recordDate === selectedDate;
       } else if (filterType === 'month') {
         matchesDate = recordMonth === selectedMonth;
       }
-      
-      const matchesEmployee = !selectedEmployee || 
+
+      const matchesEmployee = !selectedEmployee ||
         record.employee_id?.toString() === selectedEmployee ||
         record.employee_id?._id?.toString() === selectedEmployee;
-      
+
       return matchesDate && matchesEmployee;
     });
   }, [attendance, selectedDate, selectedMonth, filterType, selectedEmployee]);
 
   const summaryData = useMemo(() => {
     const grouped = {};
-    
+
     filteredAttendance.forEach(record => {
       const empId = record.employee_id?._id?.toString() || record.employee_id?.toString();
       const empName = record.employee_name || 'Unknown';
       const branchName = record.branch_name || '-';
       const role = record.employee_role || 'employee';
-      
+
       if (!grouped[empId]) {
         grouped[empId] = {
           employee_id: empId,
@@ -136,20 +136,20 @@ export default function Attendance() {
           records: []
         };
       }
-      
+
       grouped[empId].present_days += 1;
       grouped[empId].total_hours += record.total_hours || 0;
       grouped[empId].records.push(record);
     });
-    
+
     const [year, month] = selectedMonth.split('-').map(Number);
     const totalDaysInMonth = getDaysInMonth(year, month);
-    
+
     Object.values(grouped).forEach(emp => {
       emp.absent_days = Math.max(0, totalDaysInMonth - emp.present_days);
       emp.total_days = totalDaysInMonth;
     });
-    
+
     return Object.values(grouped).sort((a, b) => b.present_days - a.present_days);
   }, [filteredAttendance, selectedMonth]);
 
@@ -185,7 +185,7 @@ export default function Attendance() {
     const pages = [];
     const total = type === 'summary' ? Math.ceil(summaryData.length / ITEMS_PER_PAGE) : Math.ceil(filteredAttendance.length / ITEMS_PER_PAGE);
     const current = type === 'summary' ? pagination.summaryPage : pagination.detailsPage;
-    
+
     if (total <= 5) {
       for (let i = 1; i <= total; i++) pages.push(i);
     } else {
@@ -212,7 +212,7 @@ export default function Attendance() {
         { key: 'absent_days', header: 'Absent Days' },
         { key: 'total_hours', header: 'Total Hours', format: (val) => formatHours(val) },
       ];
-      
+
       exportToPDF({
         title: `Attendance Report - ${filterType === 'date' ? selectedDate : selectedMonth}`,
         data: summaryData,
@@ -239,7 +239,7 @@ export default function Attendance() {
   const [year, month] = selectedMonth.split('-').map(Number);
   const monthName = new Date(year, month - 1).toLocaleString('en-US', { month: 'long', year: 'numeric' });
   const totalDaysInMonth = getDaysInMonth(year, month);
-  const dateLabel = filterType === 'date' 
+  const dateLabel = filterType === 'date'
     ? new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
     : `${monthName} (${totalDaysInMonth} days)`;
 
@@ -253,17 +253,15 @@ export default function Attendance() {
         <div className="flex items-center gap-2">
           <button
             onClick={() => setViewMode('summary')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              viewMode === 'summary' ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${viewMode === 'summary' ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
           >
             <Users className="w-4 h-4 inline mr-1" /> Summary
           </button>
           <button
             onClick={() => setViewMode('details')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              viewMode === 'details' ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${viewMode === 'details' ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
           >
             <Clock className="w-4 h-4 inline mr-1" /> Details
           </button>
@@ -276,22 +274,20 @@ export default function Attendance() {
             <div className="flex rounded-lg overflow-hidden border border-gray-200">
               <button
                 onClick={() => setFilterType('date')}
-                className={`px-3 py-2 text-sm font-medium transition-colors ${
-                  filterType === 'date' ? 'bg-primary-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
-                }`}
+                className={`px-3 py-2 text-sm font-medium transition-colors ${filterType === 'date' ? 'bg-primary-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
+                  }`}
               >
                 Date
               </button>
               <button
                 onClick={() => setFilterType('month')}
-                className={`px-3 py-2 text-sm font-medium transition-colors ${
-                  filterType === 'month' ? 'bg-primary-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
-                }`}
+                className={`px-3 py-2 text-sm font-medium transition-colors ${filterType === 'month' ? 'bg-primary-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
+                  }`}
               >
                 Month
               </button>
             </div>
-            
+
             {filterType === 'date' ? (
               <div className="flex items-center gap-2">
                 <Calendar className="w-5 h-5 text-gray-400" />
@@ -318,7 +314,7 @@ export default function Attendance() {
               </div>
             )}
           </div>
-          
+
           {isAdmin && (
             <>
               <div className="relative">
@@ -338,7 +334,7 @@ export default function Attendance() {
                   ))}
                 </select>
               </div>
-              
+
               <div className="relative">
                 <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
                 <select
@@ -416,7 +412,7 @@ export default function Attendance() {
               {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />} Export PDF
             </button>
           </div>
-          
+
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50">
@@ -481,7 +477,7 @@ export default function Attendance() {
                 <span className="font-medium">{Math.min(pagination.summaryPage * ITEMS_PER_PAGE, summaryData.length)}</span> of{' '}
                 <span className="font-medium">{summaryData.length}</span> results
               </div>
-              
+
               <div className="flex items-center gap-1">
                 <button
                   onClick={() => handlePageChange('summary', pagination.summaryPage - 1)}
@@ -490,7 +486,7 @@ export default function Attendance() {
                 >
                   <ChevronLeft className="w-5 h-5" />
                 </button>
-                
+
                 {getPageNumbers('summary').map((page, idx) => (
                   page === '...' ? (
                     <span key={`ellipsis-${idx}`} className="px-2 text-gray-400">...</span>
@@ -498,17 +494,16 @@ export default function Attendance() {
                     <button
                       key={page}
                       onClick={() => handlePageChange('summary', page)}
-                      className={`min-w-[36px] h-9 flex items-center justify-center rounded-lg text-sm font-medium transition-colors ${
-                        pagination.summaryPage === page
-                          ? 'bg-primary-600 text-white'
-                          : 'text-gray-600 hover:bg-gray-100'
-                      }`}
+                      className={`min-w-[36px] h-9 flex items-center justify-center rounded-lg text-sm font-medium transition-colors ${pagination.summaryPage === page
+                        ? 'bg-primary-600 text-white'
+                        : 'text-gray-600 hover:bg-gray-100'
+                        }`}
                     >
                       {page}
                     </button>
                   )
                 ))}
-                
+
                 <button
                   onClick={() => handlePageChange('summary', pagination.summaryPage + 1)}
                   disabled={pagination.summaryPage === Math.ceil(summaryData.length / ITEMS_PER_PAGE)}
@@ -523,7 +518,7 @@ export default function Attendance() {
       ) : (
         <div className="card">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">{filterType === 'date' ? 'Date' : 'Monthly'} Details - {dateLabel}</h2>
-          
+
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50">
@@ -583,7 +578,7 @@ export default function Attendance() {
                 <span className="font-medium">{Math.min(pagination.detailsPage * ITEMS_PER_PAGE, filteredAttendance.length)}</span> of{' '}
                 <span className="font-medium">{filteredAttendance.length}</span> results
               </div>
-              
+
               <div className="flex items-center gap-1">
                 <button
                   onClick={() => handlePageChange('details', pagination.detailsPage - 1)}
@@ -592,7 +587,7 @@ export default function Attendance() {
                 >
                   <ChevronLeft className="w-5 h-5" />
                 </button>
-                
+
                 {getPageNumbers('details').map((page, idx) => (
                   page === '...' ? (
                     <span key={`ellipsis-${idx}`} className="px-2 text-gray-400">...</span>
@@ -600,17 +595,16 @@ export default function Attendance() {
                     <button
                       key={page}
                       onClick={() => handlePageChange('details', page)}
-                      className={`min-w-[36px] h-9 flex items-center justify-center rounded-lg text-sm font-medium transition-colors ${
-                        pagination.detailsPage === page
-                          ? 'bg-primary-600 text-white'
-                          : 'text-gray-600 hover:bg-gray-100'
-                      }`}
+                      className={`min-w-[36px] h-9 flex items-center justify-center rounded-lg text-sm font-medium transition-colors ${pagination.detailsPage === page
+                        ? 'bg-primary-600 text-white'
+                        : 'text-gray-600 hover:bg-gray-100'
+                        }`}
                     >
                       {page}
                     </button>
                   )
                 ))}
-                
+
                 <button
                   onClick={() => handlePageChange('details', pagination.detailsPage + 1)}
                   disabled={pagination.detailsPage === Math.ceil(filteredAttendance.length / ITEMS_PER_PAGE)}
